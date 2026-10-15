@@ -35,6 +35,7 @@ def create_action_model(
     redirect_common_files: bool = True,
     model_dtype: torch.dtype = torch.bfloat16,
     device: str = "cuda",
+    _model_class=None,
 ):
     from .action_model import LiberoActionModel
 
@@ -88,7 +89,7 @@ def create_action_model(
         video_lora = {}
     if not isinstance(video_lora, dict):
         raise ValueError(f"`video_lora` must be dict-like, got {type(video_lora)}")
-    return LiberoActionModel.from_wan21_14b_pretrained(
+    return (_model_class or LiberoActionModel).from_wan21_14b_pretrained(
         device=device,
         torch_dtype=model_dtype,
         model_id=model_id,
@@ -222,6 +223,9 @@ def run_training(cfg):
         model_dtype=_mixed_precision_to_model_dtype(cfg.mixed_precision),
         device=_resolve_train_device(),
     )
+    if cfg.get("meanflow"):
+        from vpp2.meanflow.manifest import write_manifest
+        write_manifest(cfg, model)
     train_ds, val_ds = build_datasets(cfg.data)
     probe = validate_preflight_config(cfg)
     if probe:

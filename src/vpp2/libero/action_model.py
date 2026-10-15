@@ -42,6 +42,8 @@ class LiberoActionModel(VPP2):
             video_checkpoint=dict(path=str(video), size_bytes=video.stat().st_size),
             resolved_config=config,
         )
+        if hasattr(self, "fm_continuation_source"):
+            payload["fm_continuation"] = dict(self.fm_continuation_source, student_update_step=step)
         torch.save(payload, path)
         return payload
 
@@ -60,6 +62,11 @@ class LiberoActionModel(VPP2):
             if not video.is_absolute():
                 video = Path(path).resolve().parent / video
             self._load_video_base_state_dict(self._load_video_checkpoint_state(video))
+        if payload.get("meanflow"):
+            self.action_expert.enable_meanflow()
+            self.action_sampler = "meanflow"
+        else:
+            self.action_sampler = "flow_matching"
         self.action_expert.load_state_dict(payload["action_expert"], strict=True)
         self.proprio_encoder.load_state_dict(payload["proprio_encoder"], strict=True)
         return payload.get("step")

@@ -18,17 +18,39 @@ def validate_checkpoint(cfg):
 
     action = torch.load(cfg.action_checkpoint, map_location="cpu", mmap=True, weights_only=True)
     video = torch.load(cfg.video_checkpoint, map_location="cpu", mmap=True, weights_only=True)
-    if action.get("step") != 30000 or video.get("step") != 10000 or not video.get("dit"):
+    if action.get("step") != int(cfg.action_step):
+        raise ValueError("Evaluation action_step does not match checkpoint update count")
+    mf = action.get("meanflow")
+    continuation = action.get("fm_continuation")
+    if bool(continuation) != bool(cfg.get("fm_continuation", False)):
+        raise ValueError("FM continuation evaluation must match checkpoint provenance")
+    if continuation:
+        from vpp2.meanflow.runtime import sha256
+        if mf or continuation["source_step"] != 30000 or continuation["student_update_step"] != action["step"]:
+            raise ValueError("Invalid B2 source/update metadata")
+        if continuation["video_sha256"] != sha256(cfg.video_checkpoint):
+            raise ValueError("B2 frozen Video differs from its training source")
+    if not mf and cfg.get("action_sampler", "flow_matching") != "flow_matching":
+        raise ValueError("An FM checkpoint must not be relabeled MeanFlow")
+    if mf:
+        if cfg.get("action_sampler") != "meanflow" or int(cfg.get("action_nfe", 0)) != 1:
+            raise ValueError("MeanFlow evaluation requires explicit action_sampler=meanflow action_nfe=1")
+        source = mf["provenance"]["student"]
+        if source["source_step"] != 30000 or action.get("step") != mf["student_update_step"]:
+            raise ValueError("Invalid MeanFlow source/update metadata")
+    if (not mf and not continuation and action.get("step") != 30000) or video.get("step") != 10000 or not video.get("dit"):
         raise ValueError("Expected compact Action 30k and standalone Video 10k")
     legacy = OmegaConf.create(action_config(action))
     validate_training_config(legacy, require_portable_target=False)
-    if int(legacy.batch_size) != 32 or int(legacy.max_steps) != 30000:
+    if not mf and not continuation and (int(legacy.batch_size) != 32 or int(legacy.max_steps) != 30000):
         raise ValueError("Checkpoint is not the large-batch horizontal Action-30k recipe")
     if action["action_expert"]["action_encoder.weight"].shape != (512, 7):
         raise ValueError("Expected LIBERO Action expert hidden512/action7")
     if action["proprio_encoder"]["weight"].shape != (4096, 8):
         raise ValueError("Expected LIBERO proprio8 -> text4096")
-    return dict(action_step=action["step"], video_step=video["step"])
+    return dict(action_step=action["step"], video_step=video["step"],
+                action_sampler="meanflow" if mf else "flow_matching",
+                action_nfe=int(cfg.get("action_nfe", 10)), meanflow=mf)
 
 
 def runtime_environment(cfg, gpu):
@@ -100,7 +122,7 @@ def worker_config(cfg, output, manifest, gpu, seed_id):
         num_steps_wait=p["settle"],
         replan_steps=10,
         action_horizon=32,
-        num_inference_steps=10,
+        num_inference_steps=int(cfg.get("action_nfe", 10)),
         sigma_shift=5.0,
         camera_preprocess_mode="training_exact",
         video_seed_offset=1,
@@ -214,6 +236,10 @@ def audit(cfg, output=None, require_status=True):
     return dict(
         benchmark=cfg.benchmark,
         protocol=p["name"],
+        action_sampler=cfg.get("action_sampler", "flow_matching"),
+        action_nfe=int(cfg.get("action_nfe", 10)),
+        action_step=int(cfg.action_step),
+        source_action_step=int(cfg.get("source_action_step", cfg.action_step)),
         complete=complete,
         successes=successes,
         episodes=episodes,
@@ -235,10 +261,12 @@ def run(cfg, gpus, dry_run=False, resume=False):
                 benchmark=cfg.benchmark,
                 protocol=p,
                 cells=len(cells(cfg.benchmark)),
-                action_step=30000,
-                video_step=10000,
+                action_step=int(cfg.action_step),
+                video_step=int(cfg.video_step),
+                source_action_step=int(cfg.get("source_action_step", cfg.action_step)),
+                action_sampler=cfg.get("action_sampler", "flow_matching"),
                 shift=5,
-                steps=10,
+                steps=int(cfg.get("action_nfe", 10)),
                 replan=10,
                 gpus=gpus,
             ),

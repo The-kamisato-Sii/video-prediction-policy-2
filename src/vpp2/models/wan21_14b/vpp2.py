@@ -508,14 +508,15 @@ class VPP2(torch.nn.Module):
                 "Prompt encoding requires loaded text encoder/tokenizer. Set `load_text_encoder=true` or provide precomputed `context/context_mask`."
             )
         (ids, mask) = self.tokenizer(prompt, return_mask=True, add_special_tokens=True)
-        ids = ids.to(self.device)
-        mask = mask.to(self.device, dtype=torch.bool)
+        text_device = next(self.text_encoder.parameters()).device
+        ids = ids.to(text_device)
+        mask = mask.to(text_device, dtype=torch.bool)
         prompt_emb = self.text_encoder(ids, mask)
         seq_lens = mask.gt(0).sum(dim=1).long()
         for i, v in enumerate(seq_lens):
             prompt_emb[i, v:] = 0
         mask = torch.ones_like(mask)
-        return (prompt_emb.to(device=self.device), mask)
+        return (prompt_emb.to(device=self.device), mask.to(self.device))
 
     def _append_proprio_to_context(
         self, context: torch.Tensor, context_mask: torch.Tensor, proprio: Optional[torch.Tensor]
@@ -1400,7 +1401,10 @@ class VPP2(torch.nn.Module):
         return (loss_total, loss_dict)
 
     @torch.no_grad()
-    def _predict_action_noise_with_cache(
+    def _predict_action_noise_with_cache(self, *args, **kwargs):
+        return self.predict_action_velocity_with_cache(*args, **kwargs)
+
+    def predict_action_velocity_with_cache(
         self,
         latents_action: torch.Tensor,
         timestep_action: torch.Tensor,
@@ -1413,10 +1417,12 @@ class VPP2(torch.nn.Module):
         clean_first_frame_attention_mask: Optional[torch.Tensor] = None,
         clean_first_frame_video_seq_len: Optional[int] = None,
         clean_first_frame_start_layer: Optional[int] = None,
+        timestep_end: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         action_pre = self.action_expert.pre_dit(
             action_tokens=latents_action,
             timestep=timestep_action,
+            timestep_end=timestep_end,
             context=context,
             context_mask=context_mask,
         )
@@ -1467,8 +1473,17 @@ class VPP2(torch.nn.Module):
         return_full_video: bool = False,
         full_video_num_inference_steps: Optional[int] = None,
         condition_observation_video: Optional[torch.Tensor] = None,
+        action_sampler: Optional[str] = None,
     ) -> dict[str, Any]:
         self.eval()
+        sampler = action_sampler or getattr(self, "action_sampler", "flow_matching")
+        if sampler not in {"flow_matching", "meanflow"}:
+            raise ValueError(f"Unknown action sampler: {sampler}")
+        if sampler == "meanflow":
+            if not hasattr(self.action_expert, "time_end_embedding"):
+                raise ValueError("MeanFlow sampling requires a MeanFlow checkpoint")
+            if num_inference_steps != 1:
+                raise ValueError("MeanFlow inference requires exactly one action evaluation")
         allowed_action_modes = {"bidirectional", "first_frame_causal", "three_frame"}
         if (
             str(getattr(self.video_expert, "video_attention_mask_mode", ""))
@@ -1694,6 +1709,7 @@ class VPP2(torch.nn.Module):
                 attention_mask=attention_mask,
                 video_seq_len=video_seq_len,
                 **clean_cache_kwargs,
+                **({"timestep_end": torch.zeros_like(timestep_action)} if sampler == "meanflow" else {}),
             )
             pred_action = pred_action_posi
             latents_action = self.infer_action_scheduler.step(
@@ -1797,6 +1813,8 @@ class VPP2(torch.nn.Module):
 
     def save_checkpoint(self, path, optimizer=None, step=None):
         payload = {"mot": self.mot.state_dict(), "step": step, "torch_dtype": str(self.torch_dtype)}
+        if hasattr(self, "fm_continuation_source"):
+            payload["fm_continuation"] = dict(self.fm_continuation_source, student_update_step=step)
         if self.proprio_encoder is not None:
             payload["proprio_encoder"] = self.proprio_encoder.state_dict()
         if optimizer is not None:

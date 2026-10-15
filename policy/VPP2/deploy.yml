@@ -22,3 +22,6 @@ num_inference_steps: 10
 sigma_shift: 1.0
 seed: 1
 default_instruction: follow the instruction
+
+# Set cpu to keep UMT5 off the GPU on memory-constrained policy hosts.
+text_encoder_device: null

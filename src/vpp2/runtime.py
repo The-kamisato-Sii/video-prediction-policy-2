@@ -75,6 +75,7 @@ def create_vpp2_wan21_14b(
     redirect_common_files: bool = True,
     model_dtype: torch.dtype = torch.bfloat16,
     device: str = "cuda",
+    _model_class=None,
 ):
     from .models.wan21_14b.vpp2 import VPP2
 
@@ -146,7 +147,7 @@ def create_vpp2_wan21_14b(
     if dit_checkpoint_path is not None and Path(dit_checkpoint_path).is_file():
         dit_checkpoint_path = str(Path(dit_checkpoint_path).resolve())
 
-    return VPP2.from_wan21_14b_pretrained(
+    return (_model_class or VPP2).from_wan21_14b_pretrained(
         device=device,
         torch_dtype=model_dtype,
         model_id=model_id,
@@ -305,6 +306,9 @@ def run_training(cfg: DictConfig):
     set_seed(int(cfg.seed))
     with profiler.measure_startup("model_instantiate_ms", cuda=True):
         model = instantiate(cfg.model, model_dtype=model_dtype, device=model_device)
+        if cfg.get("meanflow"):
+            from .meanflow.manifest import write_manifest
+            write_manifest(cfg, model)
     with profiler.measure_startup("dataset_build_ms"):
         train_ds, val_ds = build_datasets(cfg.data)
     if preflight_settings is not None:

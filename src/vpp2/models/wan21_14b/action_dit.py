@@ -67,6 +67,7 @@ class ActionDiT(nn.Module):
         use_video_tokens: bool = False,
         video_token_dim: Optional[int] = None,
         video_token_latent_dim: int = 2560,
+        meanflow: bool = False,
     ):
         super().__init__()
         self.hidden_dim = hidden_dim
@@ -151,6 +152,20 @@ class ActionDiT(nn.Module):
         self.freqs = precompute_freqs_cis(attn_head_dim, end=1024)
 
         self.use_gradient_checkpointing = use_gradient_checkpointing
+        if meanflow:
+            self.enable_meanflow()
+
+    def enable_meanflow(self):
+        """Add a zero-output end-time branch without changing legacy parameters."""
+        if hasattr(self, "time_end_embedding"):
+            return
+        ref = self.time_embedding[0].weight
+        self.time_end_embedding = nn.Sequential(
+            nn.Linear(self.freq_dim, self.hidden_dim), nn.SiLU(),
+            nn.Linear(self.hidden_dim, self.hidden_dim),
+        ).to(device=ref.device, dtype=ref.dtype)
+        nn.init.zeros_(self.time_end_embedding[-1].weight)
+        nn.init.zeros_(self.time_end_embedding[-1].bias)
 
     def encode_video_tokens(self, video_tokens: torch.Tensor) -> torch.Tensor:
         """Compress frozen Wan video features before action-owned K/V projections."""
@@ -345,6 +360,7 @@ class ActionDiT(nn.Module):
         timestep: torch.Tensor,
         context: torch.Tensor,
         context_mask: Optional[torch.Tensor] = None,
+        timestep_end: Optional[torch.Tensor] = None,
     ) -> Dict[str, Any]:
         if action_tokens.ndim != 3:
             raise ValueError(
@@ -399,6 +415,13 @@ class ActionDiT(nn.Module):
             dtype=time_weight.dtype,
         )
         t = self.time_embedding(time_input)
+        if timestep_end is not None:
+            if not hasattr(self, "time_end_embedding"):
+                raise ValueError("An end time requires a MeanFlow ActionDiT")
+            if timestep_end.shape != timestep.shape:
+                raise ValueError("End and current timesteps must have matching shapes")
+            end_input = sinusoidal_embedding_1d(self.freq_dim, timestep_end).to(time_weight)
+            t = t + self.time_end_embedding(end_input)
         t_mod = self.time_projection(t).unflatten(1, (6, self.hidden_dim))
 
         tokens = self.action_encoder(action_tokens)

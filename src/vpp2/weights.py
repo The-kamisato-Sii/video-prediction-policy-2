@@ -78,6 +78,10 @@ def deployment_config(cfg):
     """Serialize only inference architecture/preprocessing, without training paths."""
     cfg = OmegaConf.to_container(cfg, resolve=True)
     model, data = cfg["model"], cfg["data"]["train"]
+    model.pop("meanflow", None)
+    model.pop("benchmark", None)
+    if cfg.get("meanflow"):
+        model["action_dit_config"]["meanflow"] = True
     model["_target_"] = "vpp2.runtime.create_vpp2_wan21_14b"
     model.update(
         model_id="WAN_MODEL_DIR",
@@ -148,6 +152,8 @@ def export(checkpoint, config, stats, output, step):
             proprio_encoder=proprio,
             video_checkpoint={"path": "video.pt"},
             resolved_config=deployment_config(cfg),
+            **({"meanflow": source["meanflow"]} if "meanflow" in source else {}),
+            **({"fm_continuation": source["fm_continuation"]} if "fm_continuation" in source else {}),
         ),
         output / "action.pt",
     )
@@ -156,7 +162,9 @@ def export(checkpoint, config, stats, output, step):
         format="vpp2-robodojo-bundle-v1",
         step=step,
         files={p.name: p.stat().st_size for p in output.iterdir()},
-        inference=dict(steps=10, shift=1, horizon=32, replan=24, seed=1),
+        inference=dict(steps=1 if "meanflow" in source else 10, shift=1, horizon=32, replan=24, seed=1),
+        **({"meanflow": source["meanflow"]} if "meanflow" in source else {}),
+        **({"fm_continuation": source["fm_continuation"]} if "fm_continuation" in source else {}),
     )
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest

@@ -63,6 +63,23 @@ def cells(benchmark):
 def validate_config(cfg):
     if cfg.benchmark not in PROTOCOLS or cfg.protocol != PROTOCOLS[cfg.benchmark]["name"]:
         raise ValueError("Benchmark/protocol mismatch")
-    if int(cfg.action_step) != 30000 or int(cfg.video_step) != 10000:
-        raise ValueError("Paper release requires Video 10k and large-batch Action 30k")
+    sampler = cfg.get("action_sampler", "flow_matching")
+    if sampler not in {"flow_matching", "meanflow"}:
+        raise ValueError("Unknown action sampler")
+    if sampler == "meanflow":
+        if int(cfg.get("action_nfe", 0)) != 1 or int(cfg.get("source_action_step", 0)) != 30000:
+            raise ValueError("MeanFlow requires action_nfe=1 and source_action_step=30000")
+        if int(cfg.action_step) <= 0:
+            raise ValueError("action_step must be the actual positive student update count")
+    elif int(cfg.get("action_nfe", 10)) not in {1, 10}:
+        raise ValueError("FM baseline action_nfe must be 10 (B0) or 1 (B1)")
+    elif cfg.get("fm_continuation", False):
+        if int(cfg.get("source_action_step", 0)) != 30000 or int(cfg.action_step) <= 0:
+            raise ValueError(
+                "B2 requires source_action_step=30000 and its actual positive update count"
+            )
+    elif int(cfg.action_step) != 30000:
+        raise ValueError("FM release requires Action 30k")
+    if int(cfg.video_step) != 10000:
+        raise ValueError("LIBERO uses the paired frozen Video 10k")
     return PROTOCOLS[cfg.benchmark]

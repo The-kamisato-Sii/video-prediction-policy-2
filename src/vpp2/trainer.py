@@ -164,7 +164,12 @@ class JointTrainer:
             self._assert_dataset_length_consistent(self.val_dataset, "val_dataset")
         with self.profiler.measure_startup("parameter_checkpoint_load_ms", cuda=True):
             self._load_parameter_checkpoint()
+        from .checkpoint_compat import configure_fm_continuation
+        configure_fm_continuation(self.model, cfg)
         self._apply_train_mode(self.model)
+        generator = getattr(self.model, "split_generator", None)
+        if generator is not None:
+            generator.train().requires_grad_(True)
         trainable_params = self._collect_trainable_params(self.model)
         if self.preflight is not None:
             from vpp2.preflight import trainable_parameter_manifest
@@ -185,12 +190,31 @@ class JointTrainer:
                     {"params": video_params, "lr": self.video_learning_rate},
                     {"params": action_params, "lr": self.action_learning_rate},
                 ]
+            if generator is not None:
+                generator_ids = {id(p) for p in generator.parameters()}
+                if optimizer_parameters and isinstance(optimizer_parameters[0], dict):
+                    for group in optimizer_parameters:
+                        group["params"] = [p for p in group["params"] if id(p) not in generator_ids]
+                else:
+                    optimizer_parameters = [{"params": [p for p in optimizer_parameters if id(p) not in generator_ids]}]
+                optimizer_parameters.append({"params": list(generator.parameters()), "lr": self.learning_rate, "weight_decay": 0.0, "meanflow_generator": True})
             self.optimizer = torch.optim.AdamW(
                 optimizer_parameters,
                 lr=self.learning_rate,
                 weight_decay=self.weight_decay,
                 betas=self.optimizer_betas,
             )
+            if generator is not None:
+                # DeepSpeed may call Adam.step() inside Accelerator.backward().
+                # Suppress the entire marked group at that actual optimizer boundary,
+                # including Adam moments, rather than zeroing only its learning rate.
+                def skip_inactive_generator(optimizer, args, kwargs):
+                    if not self._meanflow_generator_active:
+                        for group in optimizer.param_groups:
+                            if group.get("meanflow_generator", False):
+                                for parameter in group["params"]:
+                                    parameter.grad = None
+                self.optimizer.register_step_pre_hook(skip_inactive_generator)
         with self.profiler.measure_startup("dataloader_init_ms"):
             self.train_loader = self._build_loader(
                 self.train_dataset, worker_init_fn=worker_init_fn
@@ -224,6 +248,7 @@ class JointTrainer:
                 )
             )
         self.optimizer.zero_grad(set_to_none=True)
+        self._meanflow_generator_active = False
         self.wandb_run = None
         self._init_wandb()
         with self.profiler.measure_startup("resume_training_state_ms", cuda=True):
@@ -914,20 +939,18 @@ class JointTrainer:
                     )
                     profile_first_batch_recorded = True
             with self.accelerator.accumulate(self.model):
-                train_model = (
-                    self.model
-                    if hasattr(self.model, "training_loss")
-                    else self.accelerator.unwrap_model(self.model)
-                )
+                unwrapped = self.accelerator.unwrap_model(self.model)
+                if hasattr(unwrapped, "meanflow_update_step"):
+                    unwrapped.meanflow_update_step.fill_(self.global_step)
                 training_stage = None
                 with self.profiler.measure(
                     profile_step_timings, "forward_ms", cuda=True, active=profile_collecting
                 ):
                     with self.accelerator.autocast():
                         if training_stage is None:
-                            (loss, loss_dict) = train_model.training_loss(sample)
+                            (loss, loss_dict) = self.model(sample)
                         else:
-                            (loss, loss_dict) = train_model.training_loss(
+                            (loss, loss_dict) = self.model(
                                 sample, training_stage=training_stage
                             )
                     if not bool(torch.isfinite(loss).all().item()):
@@ -951,7 +974,17 @@ class JointTrainer:
                 with self.profiler.measure(
                     profile_step_timings, "backward_ms", cuda=True, active=profile_collecting
                 ):
+                    self._meanflow_generator_active |= bool(loss_dict.get("generator_active", False))
+                    generator = getattr(unwrapped, "split_generator", None)
+                    if generator is not None and self.accelerator.sync_gradients:
+                        active = torch.tensor(int(self._meanflow_generator_active), device=loss.device)
+                        active = self.accelerator.reduce(active, reduction="sum")
+                        self._meanflow_generator_active = bool(active.item())
                     self.accelerator.backward(loss)
+                    generator = getattr(unwrapped, "split_generator", None)
+                    if generator is not None:
+                        grads = [p.grad.detach().float().square().sum() for p in generator.parameters() if p.grad is not None]
+                        loss_dict["generator_grad_norm"] = float(torch.stack(grads).sum().sqrt()) if grads else 0.0
                     if self.preflight is not None:
                         from vpp2.preflight import assert_finite_gradients
 
@@ -964,6 +997,7 @@ class JointTrainer:
                             self.model.parameters(), self.max_grad_norm
                         )
                         self.optimizer.step()
+                        self._meanflow_generator_active = False
                         if not self.accelerator.optimizer_step_was_skipped:
                             self.scheduler.step()
                         self.optimizer.zero_grad(set_to_none=True)

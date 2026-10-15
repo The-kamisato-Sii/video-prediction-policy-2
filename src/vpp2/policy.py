@@ -153,6 +153,7 @@ class RoboDojoVPP2Policy:
         sigma_shift=1.0,
         seed=1,
         replan_steps=24,
+        text_encoder_device=None,
     ):
         checkpoint_path = Path(checkpoint_path).resolve()
         payload = torch.load(checkpoint_path, map_location="cpu", mmap=True, weights_only=True)
@@ -184,6 +185,13 @@ class RoboDojoVPP2Policy:
             raise ValueError("Video/Action step or format mismatch")
         del video_meta
         model_cfg = cfg.model
+        model_cfg.pop("meanflow", None)
+        model_cfg.pop("benchmark", None)
+        is_meanflow = bool(payload.get("meanflow"))
+        if is_meanflow:
+            if payload["meanflow"].get("action_sampler") != "meanflow" or num_inference_steps != 1:
+                raise ValueError("MeanFlow checkpoint requires explicit num_inference_steps=1")
+            model_cfg.action_dit_config.meanflow = True
         model_cfg._target_ = "vpp2.runtime.create_vpp2_wan21_14b"
         model_cfg.model_id = str(Path(wan_model_dir).resolve())
         model_cfg.tokenizer_model_id = str(Path(model_cfg.model_id) / "google/umt5-xxl")
@@ -192,9 +200,19 @@ class RoboDojoVPP2Policy:
         model_cfg.load_text_encoder = True
         model_cfg.video_dit_config.use_gradient_checkpointing = False
         model_cfg.action_dit_config.use_gradient_checkpointing = False
-        model = instantiate(model_cfg, model_dtype=_model_dtype(mixed_precision), device=device)
+        # Construct on CPU when offloading T5, avoiding an initial all-model CUDA peak.
+        construct_device = "cpu" if text_encoder_device == "cpu" else device
+        model = instantiate(model_cfg, model_dtype=_model_dtype(mixed_precision), device=construct_device)
+        if text_encoder_device == "cpu":
+            model.device = torch.device(device)
+            model.mot.to(device)
+            model.proprio_encoder.to(device)
+            model._restore_auxiliary_component_dtypes()
+        elif text_encoder_device is not None:
+            raise ValueError("text_encoder_device must be null (legacy) or cpu")
         model.action_expert.load_state_dict(payload["action_expert"], strict=True)
         model.proprio_encoder.load_state_dict(payload["proprio_encoder"], strict=True)
+        model.action_sampler = "meanflow" if is_meanflow else "flow_matching"
         self.model = model.eval()
         self.processor = instantiate(data.processor).eval()
         stats = (
@@ -454,4 +472,5 @@ def get_model(args):
         sigma_shift=args.get("sigma_shift") or 1,
         seed=args.get("seed", 1),
         replan_steps=args.get("replan_steps") or 24,
+        text_encoder_device=args.get("text_encoder_device"),
     )

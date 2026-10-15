@@ -1,0 +1,39 @@
+_base_: ../robodojo/train_100k.yaml
+benchmark: robodojo
+output_dir: runs/robodojo/mf
+reference_global_batch_size: 288
+batch_size: 1
+gradient_accumulation_steps: 288
+meanflow:
+  objective: data_meanflow
+  split: midpoint
+  time_convention: clean0_noise1
+  preserve_baseline_trainability: true
+  student_init:
+    format: deployment_pair
+    action_checkpoint: weights/robodojo_release/checkpoints/joint2b_s100000/action.pt
+    video_checkpoint: weights/robodojo_release/checkpoints/joint2b_s100000/video.pt
+  teacher:
+    format: deployment_pair
+    action_checkpoint: ${meanflow.student_init.action_checkpoint}
+    video_checkpoint: ${meanflow.student_init.video_checkpoint}
+    steps: 10
+    sigma_shift: 1.0
+    frozen: true
+    proprio_source: teacher_checkpoint
+  interval:
+    source: shifted_uniform
+    full_interval_probability: 0.0
+    diagonal_probability: 0.5
+    min_gap: 0.0001
+  loss_weighting: uniform
+  derivative_backend: jvp
+  finite_difference_step: 0.01
+  generator_alpha: 0.1
+  auxiliary_geometry: false
+inference:
+  action_sampler: meanflow
+  action_nfe: 1
+
+paths:
+  wan: weights/robodojo_release/checkpoints/Wan2.1-I2V-14B-480P

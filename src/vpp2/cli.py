@@ -122,7 +122,9 @@ def server(args):
     settings = server_settings(args)
     root = Path(args.robodojo_root).resolve()
     bundle = Path(args.bundle).resolve()
-    validate_bundle(bundle, settings["checkpoint_step"])
+    manifest = validate_bundle(bundle, settings["checkpoint_step"])
+    if manifest.get("meanflow") and settings["steps"] != 1:
+        raise ValueError("MeanFlow bundle requires explicit --steps 1 and a separate evaluation config")
     config = root / "XPolicyLab/policy/VPP2/deploy.yml"
     if not config.is_file():
         raise FileNotFoundError(
@@ -146,6 +148,7 @@ def server(args):
         f"ckpt_name={settings['checkpoint_label']}",
         "action_horizon=32",
         "replan_steps=24",
+        f"text_encoder_device={args.text_encoder_device or 'null'}",
     ]
     print(json.dumps(dict(settings=settings, command=cmd), indent=2), flush=True)
     if args.dry_run:
@@ -288,6 +291,7 @@ def main():
     for name in ("robodojo-root", "bundle", "wan"):
         p.add_argument("--" + name, required=True)
     p.add_argument("--gpu", default="0")
+    p.add_argument("--text-encoder-device", choices=["cpu"], default=None)
     p.add_argument("--port", type=int, default=19960)
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--shift", type=float)
