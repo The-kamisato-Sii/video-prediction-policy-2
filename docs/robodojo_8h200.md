@@ -20,6 +20,9 @@ export PYTHONPATH="$PWD/src" OMP_NUM_THREADS=2
 export PYTORCH_ALLOC_CONF=expandable_segments:True
 ```
 
+本机 `vpp2/bin/ffmpeg` 已连接到环境中 `imageio-ffmpeg` 提供的 FFmpeg 7.0.2，
+并在 H200 实例验证了 `libx264`。转换数据不依赖容器预装的系统 FFmpeg。
+
 ## 数据和初始化
 
 共享 Wan VAE/CLIP/UMT5 位于
@@ -80,6 +83,22 @@ bash scripts/robodojo/train_8h200.sh \
 恢复路径应使用实际生成的 Accelerate/DeepSpeed 状态目录；部署权重不包含
 优化器和调度器状态。正式输出目录默认是 `runs/robodojo_baseline_8h200_100k`。
 短程诊断须指定独立 `output_dir`，不能当作 100k baseline 的收敛结果。
+
+先检查真实数据的前 20 次更新、保存完整状态，再恢复到 100k：
+
+```bash
+bash scripts/robodojo/train_8h200.sh \
+  output_dir=runs/robodojo_baseline_8h200_first20 max_steps=20 \
+  eval_at_start=false eval_every=0 log_every=1 save_every=20
+bash scripts/robodojo/train_8h200.sh \
+  output_dir=runs/robodojo_baseline_8h200_first20 \
+  resume=runs/robodojo_baseline_8h200_first20/checkpoints/state/step_000020
+```
+
+保留 `lr_tail` 时，学习率按绝对步数和固定 80k/100k 边界计算；上述 `max_steps=20`
+不会把 100k 学习率曲线压缩到 20 步。恢复命令回到原配置的 100k 上限、周期评估和
+保存频率。首次 20 步关闭评估以集中验证训练链路，恢复后再执行 held-out 评估。
+
 完成训练后的成对权重导出、54-entry / 2100-episode 测试命令见
 [RoboDojo 训练与测试](robodojo.md#4-export-the-paired-100k-bundle)。
 
@@ -100,6 +119,20 @@ python -m accelerate.commands.launch \
 每个优化器更新的计时覆盖全部累积微批次。报告位于输出目录的
 `profiling/summary.json`，训练时间估算应使用完整累积更新的耗时，
 不能将 batch 24 的单次更新直接当作 batch 288 的更新。
+
+2026-10-15 在本机 8×H200 上的[实测记录](validation/robodojo_baseline_throughput.json)：
+
+| 配置 | 稳定更新耗时 | 已分配显存峰值 / 卡 |
+|---|---:|---:|
+| 每卡 3、累积 1，全局 batch 24，4 个计时更新 | 29.11 秒 | 98.12 GiB |
+| 每卡 3、累积 12，全局 batch 288，1 个计时更新 | 349.33 秒 | 102.62 GiB |
+
+完整累积测试实际执行 2 次更新，排除第一个预热更新。按当前配置的实测速度，
+100k 步纯计算约 **404 天**，前 20 步约 **1.94 小时**；上述额外开销尚未计入。
+这是短程合成输入测量的外推，不是实际完成训练的时间，也不是 H200 的性能上限。
+独立 400 MB all-reduce 约 259 GB/s；启用连续梯度和通信重叠的对照测试仍约
+29.24 秒 / batch-24 更新，没有明显提速，因此保留原 ZeRO-2 配置。
+真实数据准备、首次训练和端到端吞吐仍需单独验证。
 
 交互式实例按用户要求设置高优先级、关闭定时自动停止；这些脚本不会停止实例。
 平台自身的抢占和资源回收策略仍由平台管理。

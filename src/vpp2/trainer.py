@@ -1067,6 +1067,12 @@ class JointTrainer:
                         and self.accelerator.is_main_process
                     ):
                         (eta_str, steps_per_sec) = self._estimate_eta()
+                        samples_per_sec = (
+                            steps_per_sec
+                            * self.batch_size
+                            * self.accelerator.num_processes
+                            * self.gradient_accumulation_steps
+                        )
                         description = "[train] epoch=%d step=%d/%d loss=%.4f " % (
                             self.epoch,
                             self.global_step,
@@ -1085,9 +1091,9 @@ class JointTrainer:
                         description += "lr=%.2e " % current_lr
                         if self._uses_video_action_lr_groups():
                             description += "action_lr=%.2e " % current_action_lr
-                        description += "speed=%.2f step/s, %.2f samples/s eta=%s" % (
+                        description += "speed=%.4f step/s, %.2f samples/s eta=%s" % (
                             steps_per_sec,
-                            steps_per_sec * self.batch_size * self.accelerator.num_processes,
+                            samples_per_sec,
                             eta_str,
                         )
                         logger.info(description)
@@ -1095,9 +1101,7 @@ class JointTrainer:
                             "train/loss": global_loss,
                             "train/lr": current_lr,
                             "performance/steps_per_sec": steps_per_sec,
-                            "performance/samples_per_sec": steps_per_sec
-                            * self.batch_size
-                            * self.accelerator.num_processes,
+                            "performance/samples_per_sec": samples_per_sec,
                         }
                         if self._uses_video_action_lr_groups():
                             wandb_payload["train/video_lr"] = current_lr

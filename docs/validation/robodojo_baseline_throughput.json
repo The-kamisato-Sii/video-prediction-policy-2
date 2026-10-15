@@ -1,0 +1,91 @@
+{
+  "date": "2026-10-15",
+  "scope": "Synthetic full-size original FM throughput only; no real-data convergence or closed-loop score",
+  "hardware": "8 x NVIDIA H200 141GB with NVLink",
+  "torch": "2.11.0+cu128",
+  "trainable_parameters_approx": 18424000000.0,
+  "precision": "bf16",
+  "zero_stage": 2,
+  "initialization": "Released joint100k paired weights used solely as timing fixture",
+  "formal_baseline_initialization": "history-conditioned Video-10k plus freshly interpolated Action2B",
+  "reference_global_batch": 288,
+  "reference_optimizer_updates": 100000,
+  "excluded_costs": [
+    "dataset decoding",
+    "periodic evaluation",
+    "checkpoint writes",
+    "data preparation",
+    "interruptions"
+  ],
+  "runs": [
+    {
+      "name": "fm_b3_a1",
+      "world_size": 8,
+      "micro_batch": 3,
+      "accumulation": 1,
+      "global_batch": 24,
+      "complete_rank_set": true,
+      "collected_optimizer_updates": 4,
+      "seconds_per_optimizer_update": 29.110152874607593,
+      "peak_allocated_gib": 98.12089252471924,
+      "peak_reserved_gib": 104.880859375,
+      "stage_seconds": {
+        "backward_ms": 28.17531987419352,
+        "data_wait_ms": 0.04443870042450726,
+        "forward_ms": 0.8986091990955174,
+        "metric_reduce_ms": 0.0010356476996093988,
+        "optimizer_ms": 0.00019712070934474468,
+        "total_step_ms": 29.110152874607593,
+        "unattributed_ms": 0.006007020594552159
+      },
+      "artifacts": "runs/robodojo_baseline_planning/fm_b3_a1"
+    },
+    {
+      "name": "fm_b3_a12",
+      "world_size": 8,
+      "micro_batch": 3,
+      "accumulation": 12,
+      "global_batch": 288,
+      "complete_rank_set": true,
+      "collected_optimizer_updates": 1,
+      "seconds_per_optimizer_update": 349.3270157678053,
+      "peak_allocated_gib": 102.62053489685059,
+      "peak_reserved_gib": 103.45703125,
+      "stage_seconds": {
+        "backward_ms": 338.00739702396095,
+        "data_wait_ms": 0.5711434641852975,
+        "forward_ms": 10.930878784507513,
+        "metric_reduce_ms": 0.0008250465616583824,
+        "optimizer_ms": 0.0001304270699620247,
+        "total_step_ms": 349.3270157678053,
+        "unattributed_ms": 0.06239380594342947
+      },
+      "artifacts": "runs/robodojo_baseline_planning/fm_b3_a12",
+      "estimated_100k_compute_days": 404.31367565718205
+    },
+    {
+      "name": "fm_b3_a1_contiguous",
+      "world_size": 8,
+      "micro_batch": 3,
+      "accumulation": 1,
+      "global_batch": 24,
+      "complete_rank_set": true,
+      "collected_optimizer_updates": 3,
+      "seconds_per_optimizer_update": 29.24362309059749,
+      "peak_allocated_gib": 102.52364206314087,
+      "peak_reserved_gib": 103.845703125,
+      "stage_seconds": {
+        "backward_ms": 28.28496900262932,
+        "data_wait_ms": 0.0758751155808568,
+        "forward_ms": 1.0281840041279793,
+        "metric_reduce_ms": 0.0008731937656799952,
+        "optimizer_ms": 0.00015785669287045798,
+        "total_step_ms": 29.24362309059749,
+        "unattributed_ms": 0.005976766347885132
+      },
+      "artifacts": "runs/robodojo_baseline_planning/fm_b3_a1_contiguous"
+    }
+  ],
+  "configuration_decision": "Retain existing ZeRO-2 configuration; contiguous gradients plus overlapping communication did not improve steady-state throughput.",
+  "nccl_all_reduce_400MB_algorithm_gbps_min": 259.3236025762773
+}
