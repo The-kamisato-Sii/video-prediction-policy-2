@@ -1,0 +1,12 @@
+# Original FM objective, initialization and 0-100k schedule on one eight-GPU node.
+# 8 GPUs * microbatch 3 * accumulation 12 = reference global batch 288.
+_base_: train_100k.yaml
+output_dir: runs/robodojo_baseline_8h200_100k
+batch_size: 3
+gradient_accumulation_steps: 12
+paths:
+  wan: weights/robodojo_release/checkpoints/Wan2.1-I2V-14B-480P
+  video_init: weights/robodojo_baseline/checkpoints/initialization/robodojo_his10k.pt
+  action_init: weights/robodojo_baseline/init/action2b_from_his10k.pt
+  data: data/robodojo_prepared
+  media: data/robodojo_native

@@ -35,6 +35,11 @@ This codebase includes:
 
 ## 本机环境、训练与验证（2026-10-15）
 
+原始 FM baseline 的单机 **8×H200** 配置、固定版本数据准备和测速命令见
+**[RoboDojo 8 卡 baseline](docs/robodojo_8h200.md)**。
+入口为 `bash scripts/robodojo/train_8h200.sh`；保持原配方 100k 次更新、
+全局 batch 288（每卡 3 × 累积 12），从 history-10k 初始化，使用 ZeRO-2。
+
 已新增可选的 D0 轨迹蒸馏、M0 MeanFlow、K0 可学习 K-MF、K1 中点 K-MF，
 保留原 FM 默认路径。完整安装、数据/权重路径、各方法训练、恢复、导出和
 RoboDojo / LIBERO 测试命令见 **[MeanFlow 使用与验证](docs/meanflow.md)**。
