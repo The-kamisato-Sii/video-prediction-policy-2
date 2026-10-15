@@ -21,3 +21,13 @@ opencv-python-headless==4.11.0.86
 open3d==0.19.0
 pydantic==2.11.10
 huggingface_hub==0.36.2
+# Newer Pinocchio/Boost wheels require NumPy 2, incompatible with Isaac Sim 5.1.
+pin==2.7.0
+cmeel-boost==1.83.0
+cmeel-urdfdom==3.1.1.1
+eigenpy==3.5.1
+ml_dtypes==0.5.4
+# Newer Viser requires websockets >= 13.1; Isaac Sim pins websockets 12.
+viser==0.2.7
+tyro==0.8.14
+plyfile==1.1.2

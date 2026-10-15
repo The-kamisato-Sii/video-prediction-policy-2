@@ -51,7 +51,7 @@ class Model(ModelTemplate):
         ):
             raise ValueError("This adapter only supports RoboDojo EE16")
         self.env_cfg_type = self.model_cfg["env_cfg_type"]
-        self.action_horizon = 1
+        self.action_horizon = int(self.model_cfg.get("action_horizon") or 32)
         self.replan_steps = int(self.model_cfg.get("replan_steps") or 24)
         self.default_instruction = str(
             self.model_cfg.get("default_instruction")
@@ -99,14 +99,31 @@ class Model(ModelTemplate):
             )
         if _is_none_like(dataset_stats_path):
             raise FileNotFoundError("VPP2 requires dataset_stats_path for real deployment.")
-        from vpp2.policy import get_model
-
         upstream_cfg = dict(self.model_cfg)
         upstream_cfg["ckpt_setting"] = str(Path(checkpoint_path).expanduser().resolve())
         upstream_cfg["dataset_stats_path"] = str(Path(dataset_stats_path).expanduser().resolve())
-        self.model = get_model(upstream_cfg)
+        self._upstream_cfg = upstream_cfg
+        if not self.model_cfg.get("defer_model_load", False):
+            self._ensure_model()
+
+    def _ensure_model(self):
+        if self.model is not None:
+            return
+        from vpp2.policy import get_model
+
+        print("[VPP2] Loading complete policy weights...", flush=True)
+        self.model = get_model(self._upstream_cfg)
         self.action_horizon = int(self.model.action_horizon)
         self.replan_steps = int(self.model.replan_steps)
+        self._release_cuda_cache()
+        print("[VPP2] Policy ready.", flush=True)
+
+    def _release_cuda_cache(self):
+        if self.model_cfg.get("release_cuda_cache", False):
+            import torch
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
     @staticmethod
     def _pack_robodojo_ee16_state(obs: dict) -> np.ndarray:
@@ -231,6 +248,9 @@ class Model(ModelTemplate):
         self._last_virtual_by_client[client] = encoded["env_idx"]
 
     def update_obs(self, obs):
+        # Native RoboDojo creates/render-resets the scene before sending its
+        # first observation. Defer allocation until then when sharing one GPU.
+        self._ensure_model()
         self._bind_client(obs)
         observation_history = obs.get("_vpp2_observation_history")
         if observation_history:
@@ -290,6 +310,7 @@ class Model(ModelTemplate):
             action_chunk = action_chunk[None, :]
         n_exec = min(self.replan_steps, action_chunk.shape[0])
         action_chunk = action_chunk[:n_exec]
+        self._release_cuda_cache()
         return self._unpack_robodojo_ee16_actions(action_chunk)
 
     def get_action(self, obs=None):

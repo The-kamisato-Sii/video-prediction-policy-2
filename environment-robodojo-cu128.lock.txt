@@ -1,0 +1,295 @@
+# Verified simulator environment; excludes editable IsaacLab/cuRobo source packages.
+# Install those at the pinned revisions through scripts/setup/robodojo_env.sh.
+absl-py==2.5.1
+addict==2.4.0
+aioboto3==15.1.0
+aiobotocore==2.24.0
+aiodns==3.1.1
+aiofiles==23.2.1
+aiohappyeyeballs==2.4.4
+aiohttp==3.11.11
+aioitertools==0.11.0
+aiosignal==1.3.2
+annotated-types==0.8.0
+antlr4-python3-runtime==4.9.3
+anyio==4.14.2
+anytree==2.13.0
+asteval==1.0.6
+asttokens==3.0.2
+async-timeout==5.0.1
+attrs==25.1.0
+awscrt==0.23.8
+azure-core==1.28.0
+azure-identity==1.13.0
+azure-storage-blob==12.17.0
+blinker==1.9.0
+boto3==1.39.11
+botocore==1.39.11
+certifi==2026.7.22
+cffi==2.1.1
+cfgv==3.5.0
+chardet==7.6.0
+charset-normalizer==3.3.2
+click==8.1.7
+cloudpickle==3.1.2
+cmeel==0.61.0
+cmeel-assimp==5.4.3.1
+cmeel-boost==1.83.0
+cmeel-console-bridge==1.0.2.3
+cmeel-octomap==1.10.0
+cmeel-qhull==8.0.2.1
+cmeel-tinyxml==2.6.2.3
+cmeel-urdfdom==3.1.1.1
+cmeel-zlib==1.3.2
+colorlog==6.12.0
+comm==0.2.3
+ConfigArgParse==1.8.0
+contourpy==1.3.1
+coverage==7.4.4
+cryptography==44.0.0
+cuda-bindings==12.9.9
+cuda-core==1.2.1
+cuda-pathfinder==1.8.3
+cuda-toolkit==12.9.2.0
+cycler==0.11.0
+daqp==0.7.2
+dash==4.4.1
+decorator==5.3.1
+dex_retargeting==0.4.6
+distlib==0.4.3
+docstring_parser==0.18.0
+eigenpy==3.5.1
+einops==0.8.2
+embreex==4.4.0
+executing==2.3.0
+Farama-Notifications==0.0.6
+fastapi==0.115.7
+fastjsonschema==2.22.2
+ffmpeg==1.4
+filelock==3.13.1
+flaky==3.8.1
+Flask==3.1.3
+flatdict==4.0.0
+fonttools==4.55.3
+frozenlist==1.5.0
+fsspec==2024.6.1
+grpcio==1.84.0
+gunicorn==23.0.0
+gymnasium==1.2.1
+h11==0.16.0
+h5py==3.16.0
+hf-xet==1.7.0
+hidapi==0.14.0.post2
+hpp-fcl==2.4.4
+httpcore==1.0.9
+httptools==0.6.1
+httpx==0.28.1
+huggingface_hub==0.36.2
+hydra-core==1.3.7
+identify==2.6.20
+idna==3.10
+idna-ssl==1.1.0
+imageio==2.37.0
+imageio-ffmpeg==0.6.0
+importlib_metadata==9.0.1
+importlib_resources==7.1.0
+iniconfig==2.3.1
+ipython==8.39.0
+ipywidgets==8.1.9
+isaacsim @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=ad2c027831ed5d4a62552735bb799dea4e4604530d2ab9b526ddb6cd19a98c11
+isaacsim-app @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim_app-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=88d0ad9d56439aacd670490dab7cf55c72cece72894e3932a9a0493b12fa60a2
+isaacsim-asset @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim_asset-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=260bb3486e263488fd406c28da37ef79d73da7fd9f9ea6c7a36b111a8a6f8361
+isaacsim-benchmark @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim_benchmark-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=8353d696c1231524ac263b5700f79fe5f9b8c9dd0ef003580fec5d9c166bc5b3
+isaacsim-code-editor @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim_code_editor-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=4dbc1833765987aa614e78f4166ef1dcddd5282fe4f395ffc5e3b6ebee653b10
+isaacsim-core @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim_core-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=cfdd5d82ce455d654c68d37ff4fdd062190e3414289beb6f9b876a10a851b92d
+isaacsim-cortex @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim_cortex-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=b2f9b7f2f4aa8b856bb7a5f7808aec90f633b2ee409e709099a0d071c57a6296
+isaacsim-example @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim_example-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=a537336402f631921da4bee742ad846949824d48c84dacfbc7e8fd97b2d23c04
+isaacsim-extscache-kit @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim_extscache_kit-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=82c0c43a4a8a62a37c82a6c32a489be6ac2fb52baf17041dcccb80295d94721f
+isaacsim-extscache-kit-sdk @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim_extscache_kit_sdk-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=be8cb4520eb9c97c4ddd46e1c92885bb9e5dbc581e407930f186a3808eafc038
+isaacsim-extscache-physics @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim_extscache_physics-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=a4b450c7b33d2ada42e1736ac48e002103aac0b93e4f618d9fa4c212762dc74b
+isaacsim-gui @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim_gui-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=af0a3e2eb9ecd6c5a6088fcd50a480736c391f72bd38a854cc69a1c13861800b
+isaacsim-kernel @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim_kernel-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=f981290a70ad89f169fb9c47bd55833665677879ebc46ed3992756c617ac02fc
+isaacsim-replicator @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim_replicator-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=8fe63ec5adf9fbe12aef82b4634a9662f8ad933d8f8428c64f11dc71406e4948
+isaacsim-rl @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim_rl-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=d1fdc4f2046a205ba34a3a69c96f5a51744783f74cd824e047f43bc1ee66c7b9
+isaacsim-robot @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim_robot-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=3d7529f76b390210fd3dad66101958f4292f7306c9182b06cf532763341087e2
+isaacsim-robot-motion @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim_robot_motion-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=0163f3d3243f0641502527f066febe22c93e651eb54e911442f88bc3fb37db9c
+isaacsim-robot-setup @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim_robot_setup-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=9d48262259e89cb1d02c325d69cca6ece24919d4736f8a5ac3db861ddb962de0
+isaacsim-ros1 @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim_ros1-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=a0b541c266c409b7e48388f2f2bfce8a0417735b4fb238dd0b1dbf9f1a9df06e
+isaacsim-ros2 @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim_ros2-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=0b9ee70c64a54a8ee416de2a785b71270832c15b901f86adf6bd18153dc66662
+isaacsim-sensor @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim_sensor-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=3c52d04aa11a213103031a3a53f2a74866a27dc47fd88bbd3eb6c52c65f163f1
+isaacsim-storage @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim_storage-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=57d90579ef9ce8e89e39bd38f30f81577a051c19e5950e8d4a67c3af894fd625
+isaacsim-template @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim_template-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=76e19875380d9e5432a01b3b14d2d640d1d092069518e36c597eb79ff1a06474
+isaacsim-test @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim_test-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=b3a1b647d6bec16b649b5d6f4199b0dd8aa3d70fcc5cc9603fef8e6e9bf986dc
+isaacsim-utils @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/isaacsim_utils-5.1.0.0-cp311-none-manylinux_2_35_x86_64.whl#sha256=becd39be3fc0d3b5abe332febf50c2af518aa99db5582344b53cba6076385116
+isodate==0.6.1
+itsdangerous==2.2.0
+janus==2.0.0
+jedi==0.20.1
+Jinja2==3.1.6
+jmespath==1.0.1
+joblib==1.6.0
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+junitparser==5.0.3
+jupyter_core==5.9.1
+jupyterlab_widgets==3.0.17
+kiwisolver==1.4.4
+lazy-loader==0.6
+llvmlite==0.42.0
+loop-rate-limiters==1.2.0
+lxml==6.1.3
+manifold3d==3.5.4
+mapbox_earcut==2.1.0
+Markdown==3.11.1
+markdown-it-py==4.2.0
+MarkupSafe==2.1.3
+matplotlib==3.10.3
+matplotlib-inline==0.2.2
+mdurl==0.1.2
+ml_dtypes==0.5.4
+moviepy==2.2.1
+mpmath==1.3.0
+msal==1.27.0
+msal-extensions==1.0.0
+msgpack==1.2.3
+msgpack-numpy==0.4.8
+msgspec==0.22.0
+multidict==6.1.0
+narwhals==2.27.1
+nbformat==5.11.1
+nest-asyncio==1.5.6
+networkx==3.3
+nlopt==2.7.1
+nodeenv==1.11.0
+numba==0.59.1
+numpy==1.26.0
+numpy-quaternion==2024.0.13
+nvidia-cublas-cu12 @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/robodojo/nvidia_cublas_cu12-12.8.3.14-py3-none-manylinux_2_27_x86_64.whl#sha256=3f0e05e7293598cf61933258b73e66a160c27d59c4422670bf0b79348c04be44
+nvidia-cuda-cupti-cu12 @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/robodojo/nvidia_cuda_cupti_cu12-12.8.57-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl#sha256=8e0b2eb847de260739bee4a3f66fac31378f4ff49538ff527a38a01a9a39f950
+nvidia-cuda-nvcc-cu12==12.9.86
+nvidia-cuda-nvrtc-cu12 @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/robodojo/nvidia_cuda_nvrtc_cu12-12.8.61-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl#sha256=a0fa9c2a21583105550ebd871bd76e2037205d56f33f128e69f6d2a55e0af9ed
+nvidia-cuda-runtime-cu12 @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/robodojo/nvidia_cuda_runtime_cu12-12.8.57-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl#sha256=75342e28567340b7428ce79a5d6bb6ca5ff9d07b69e7ce00d2c7b4dc23eff0be
+nvidia-cudnn-cu12 @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/robodojo/nvidia_cudnn_cu12-9.7.1.26-py3-none-manylinux_2_27_x86_64.whl#sha256=6d011159a158f3cfc47bf851aea79e31bcff60d530b70ef70474c84cac484d07
+nvidia-cufft-cu12 @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/robodojo/nvidia_cufft_cu12-11.3.3.41-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl#sha256=da650080ab79fcdf7a4b06aa1b460e99860646b176a43f6208099bdc17836b6a
+nvidia-cufile-cu12 @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/robodojo/nvidia_cufile_cu12-1.13.0.11-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl#sha256=483f434c541806936b98366f6d33caef5440572de8ddf38d453213729da3e7d4
+nvidia-curand-cu12 @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/robodojo/nvidia_curand_cu12-10.3.9.55-py3-none-manylinux_2_27_x86_64.whl#sha256=8387d974240c91f6a60b761b83d4b2f9b938b7e0b9617bae0f0dafe4f5c36b86
+nvidia-cusolver-cu12 @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/robodojo/nvidia_cusolver_cu12-11.7.2.55-py3-none-manylinux_2_27_x86_64.whl#sha256=4d1354102f1e922cee9db51920dba9e2559877cf6ff5ad03a00d853adafb191b
+nvidia-cusparse-cu12 @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/robodojo/nvidia_cusparse_cu12-12.5.7.53-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl#sha256=3c1b61eb8c85257ea07e9354606b26397612627fdcd327bfd91ccf6155e7c86d
+nvidia-cusparselt-cu12 @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/robodojo/nvidia_cusparselt_cu12-0.6.3-py3-none-manylinux2014_x86_64.whl#sha256=e5c8a26c36445dd2e6812f1177978a24e2d37cacce7e090f297a688d1ec44f46
+nvidia-nccl-cu12 @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/robodojo/nvidia_nccl_cu12-2.26.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl#sha256=694cf3879a206553cc9d7dbda76b13efaf610fdb70a50cba303de1b0d1530ac6
+nvidia-nvfatbin-cu12==12.9.82
+nvidia-nvjitlink-cu12 @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/robodojo/nvidia_nvjitlink_cu12-12.8.61-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl#sha256=45fd79f2ae20bd67e8bc411055939049873bfd8fac70ff13bd4865e0b9bdab17
+nvidia-nvtx-cu12 @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/robodojo/nvidia_nvtx_cu12-12.8.55-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl#sha256=2dd0780f1a55c21d8e06a743de5bd95653de630decfff40621dbde78cc307102
+oauthlib==3.2.2
+omegaconf==2.3.1
+onnx==1.21.0
+open3d @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/sim_extra/open3d-0.19.0-cp311-cp311-manylinux_2_31_x86_64.whl#sha256=678017392f6cc64a19d83afeb5329ffe8196893de2432f4c258eaaa819421bb5
+opencv-python-headless==4.11.0.86
+osqp==0.6.7.post3
+packaging==23.0
+pandas==3.0.6
+parso==0.8.7
+pexpect==4.9.0
+pillow==11.3.0
+pin==2.7.0
+pin-pink==3.1.0
+Pint==0.20.1
+platformdirs==4.13.0
+plotly==7.1.0
+pluggy==1.6.0
+plyfile==1.1.2
+portalocker==2.7.0
+pre_commit==4.7.0
+prettytable==3.3.0
+proglog==0.1.12
+prompt_toolkit==3.0.53
+propcache==0.2.1
+protobuf==7.36.2
+psutil==5.9.8
+ptyprocess==0.7.0
+pure_eval==0.2.4
+pycares==4.8.0
+pycollada==0.9.3
+pycparser==3.11
+pydantic==2.11.10
+pydantic_core==2.33.2
+pyglet==1.5.31
+Pygments==2.21.0
+PyJWT==2.15.1
+pyliblzfse==0.4.1
+pyparsing==3.0.9
+pyperclip==1.8.0
+pypng==0.20220715.0
+pyquaternion==0.9.9
+pytest==9.1.1
+pytest-mock==3.16.0
+python-dateutil==2.9.0.post0
+python-dotenv==1.2.4
+python-multipart==0.0.20
+pytransform3d==3.17.0
+pytz==2024.1
+PyYAML==6.0.2
+qdldl==0.1.7.post5
+qpsolvers==4.13.0
+qrcode==7.4.2
+quadprog==0.1.13
+referencing==0.37.0
+regex==2026.9.29
+requests==2.32.3
+requests-oauthlib==1.3.1
+retrying==1.4.2
+rich==15.0.0
+rpds-py==2026.9.1
+Rtree==1.3.0
+ruff==0.17.0
+s3transfer==0.13.1
+safetensors==0.8.0
+scikit-image==0.26.0
+scikit-learn==1.9.1
+scipy==1.15.3
+sentry-sdk==2.29.1
+setuptools-scm==10.2.1
+shapely==2.2.0
+shtab==1.12.1
+six==1.17.0
+stack-data==0.6.3
+starlette==0.45.3
+svg.path==7.1
+sympy==1.13.3
+tensorboard==2.21.0
+tensorboard-data-server==0.7.2
+threadpoolctl==3.7.0
+tifffile==2026.3.3
+tokenizers==0.22.2
+toml==0.10.2
+torch @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/robodojo/torch-2.7.0%2Bcu128-cp311-cp311-manylinux_2_28_x86_64.whl#sha256=c4bbc0b4be60319ba1cefc90be9557b317f0b3c261eeceb96ca6e0343eec56bf
+torchaudio @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/robodojo/torchaudio-2.7.0%2Bcu128-cp311-cp311-manylinux_2_28_x86_64.whl#sha256=941f59c037390e288bce798f9ce53dc17b894f707f7f46b50ba3aa1c3144d283
+torchvision @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/robodojo/torchvision-0.22.0%2Bcu128-cp311-cp311-manylinux_2_28_x86_64.whl#sha256=f3ac527d58b4c2043eb8d9e29fc56cd1751f36f2aaa6dc75e34ec54c951bcb9c
+tornado==6.5.1
+tqdm==4.70.1
+traitlets==5.16.1
+transformers @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/sim_extra/transformers-4.57.6-py3-none-any.whl#sha256=4c9e9de11333ddfe5114bc872c9f370509198acf0b87a832a0ab9458e2bd0550
+transforms3d==0.4.2
+trimesh==4.5.1
+triton @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/robodojo/triton-3.3.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl#sha256=3161a2bf073d6b22c4e2f33f951f3e5e3001462b2570e6df9cd57565bdec2984
+typing-inspection==0.4.2
+typing_extensions==4.12.2
+tyro==0.8.14
+urllib3==2.8.0
+uvicorn==0.29.0
+vcs-versioning==2.2.2
+vhacdx==0.1.0
+virtualenv==20.30.0
+viser==0.2.7
+warp-lang @ file:///inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/wheels/sim_extra/warp_lang-1.11.0-py3-none-manylinux_2_28_x86_64.whl#sha256=524dce20de6162ba25333552168ebf430973050e00d9f8116b8df41a60d25d6e
+watchdog==4.0.0
+wcwidth==0.9.2
+websockets==12.0
+Werkzeug==3.1.9
+widgetsnbextension==4.0.16
+wrapt==1.16.0
+xatlas==0.0.11
+xxhash==4.0.1
+yarl==1.18.3
+yourdfpy==0.0.60
+zipp==4.1.1

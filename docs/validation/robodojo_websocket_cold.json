@@ -1,0 +1,11 @@
+{
+  "kind": "synthetic_native_websocket_probe",
+  "closed_loop": false,
+  "url": "ws://127.0.0.1:23000",
+  "executed_action_shape": [
+    24,
+    16
+  ],
+  "finite": true,
+  "request_seconds": 102.41455403342843
+}

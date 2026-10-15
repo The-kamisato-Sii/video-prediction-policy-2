@@ -37,6 +37,8 @@ frozen teacher. The original joint recipe cannot simply be run on one 48 GiB GPU
 with ZeRO-1/2. A single-GPU dry run is a launch/configuration check, **not a claim
 that full-size joint training fits**. Use sufficiently provisioned distributed
 training hardware. CPU parameter offload / ZeRO-3 are not validated by this change.
+The container's RAM limit is 100 GiB; the host's larger physical RAM does not
+override this limit.
 
 ## Simulator environment
 
@@ -64,8 +66,27 @@ IsaacLab's Starlette declaration with Isaac Sim 5.1's FastAPI requirement. It do
 not change simulation or task behavior. The original spring-button reset patch
 is also applied, as required by the existing RoboDojo guide. Assets are pinned to
 HF dataset revision `35efbc7dedfdbeeb6e95fb749bd885d73d483e41`.
-Simulator installation/closed-loop validation is still being completed; the
-full-policy smoke below does not require the simulator.
+All 15,365 source files (41.27 GB) are present and verified; see the
+[asset inventory](validation/robodojo_assets.json).
+After downloading assets, generate the robot configuration paths; the dataset
+ships `curobo_tmp.yml` templates, not ready-to-use `curobo.yml` files:
+
+```bash
+(cd ../RoboDojo && ../miniconda/envs/robodojo/bin/python utils/update_embodiment_config_path.py)
+```
+
+The installer also applies `robodojo_optional_kit_args.patch`, which exposes
+optional Kit arguments without changing default simulation settings. The smoke
+wrapper disables extension hot-reload file watchers to avoid this container's
+inotify quota, and disables core dumps while retaining text error logs.
+Simulator installation and `pip check` passed. Pinocchio/Pink and cuRobo's actual
+planner imports also passed. The NumPy/WebSocket compatibility pins are captured
+in `environment-robodojo-cu128.txt`; `environment-robodojo-cu128.lock.txt` records
+installed non-editable packages. Isaac Sim completed a headless Vulkan startup
+and three updates with no extension errors; see the
+[startup record](validation/isaacsim_headless_startup.json).
+Native closed-loop validation is still being completed; the full-policy smoke
+below does not require the simulator.
 
 ## Initialization
 
@@ -279,8 +300,24 @@ B2 provenance and its frozen Video SHA-256 must match; merely changing a step
 label cannot bypass these checks.
 
 
-Once the simulator environment is installed, a single native episode can be run
-against the policy server above (the 48 GiB host uses GPU 0 for both processes):
+For the 48 GiB host sharing GPU 0 between both processes, use deferred loading.
+Eagerly loading the policy before the first scene reset caused NVTT texture
+compression to run out of memory. The native client connects before creating the
+scene, so merely swapping the two shell commands is insufficient. This mode
+loads the complete policy on the first observation, after scene reset, and
+releases unused CUDA allocator blocks after loading and each action chunk:
+
+```bash
+# Policy environment / terminal 1; --update refreshes the copied adapter.
+bash scripts/robodojo/install_adapter.sh --robodojo-root ../RoboDojo --update
+bash scripts/robodojo/server.sh --robodojo-root ../RoboDojo \
+  --bundle "$PWD/weights/robodojo_release/checkpoints/joint2b_s100000" \
+  --wan "$PWD/weights/robodojo_release/checkpoints/Wan2.1-I2V-14B-480P" \
+  --gpu 0 --port 23000 --text-encoder-device cpu \
+  --defer-model-load --release-cuda-cache
+```
+
+Run the native single-episode client in another terminal:
 
 ```bash
 bash scripts/robodojo/smoke_client.sh --robodojo-root ../RoboDojo \
@@ -290,6 +327,10 @@ bash scripts/robodojo/smoke_client.sh --robodojo-root ../RoboDojo \
 This preserves the task's native reset, control and scoring logic, but runs only
 one episode. Its result is a deployment probe and must not be reported as the
 full benchmark's SR. Use the original 2100-episode evaluation/audit for that.
+The smoke wrapper allows 1200 s per request for cold model loading, via the
+optional `robodojo_request_timeout.patch`. The upstream default remains 120 s
+when `ROBODOJO_REQUEST_TIMEOUT_S` is unset. These deployment options change memory
+usage and latency; compare methods with identical placement and cache settings.
 
 To isolate native websocket/adapter integration from simulator startup, run this
 against the same running server, using the policy environment:
@@ -302,3 +343,13 @@ python checks/robodojo_websocket.py --robodojo-root ../RoboDojo \
 This explicitly uses synthetic native observations and checks the 24 executable
 EE16 actions returned after the adapter trims the policy's 32-step chunk. It is
 not a physics rollout or success-rate measurement.
+
+The actual server/client transport passed with both the Python 3.10 policy
+environment and the Python 3.11 simulator environment (websockets 12). The first
+request after server startup took 102.4 s on this network filesystem with mmap
+weights; the subsequent simulator-client request took 1.56 s. These are individual
+transport probes, not p50/p95 measurements. This probe can warm an eager server
+on a separate GPU. For shared-GPU deferred loading, let the native client's
+post-reset observation trigger loading; running this probe first would defeat
+that staging. Reports: [cold request](validation/robodojo_websocket_cold.json),
+[simulator client](validation/robodojo_websocket_sim_client.json).

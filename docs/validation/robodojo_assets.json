@@ -1,0 +1,13 @@
+{
+  "repository": "RoboDojo-Benchmark/RoboDojo",
+  "revision": "35efbc7dedfdbeeb6e95fb749bd885d73d483e41",
+  "files": 15365,
+  "bytes": 41269513111,
+  "complete": true,
+  "integrity": "Downloaded files verified against Git blob SHA-1 or LFS SHA-256; resumed large files assembled and SHA-256 verified. Final tree size inventory passed.",
+  "local_root": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/RoboDojo/Assets",
+  "derived_configs": [
+    "Assets/Robots/x5/curobo.yml",
+    "Assets/Robots/franka/curobo.yml"
+  ]
+}

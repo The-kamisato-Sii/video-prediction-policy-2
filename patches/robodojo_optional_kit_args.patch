@@ -1,0 +1,12 @@
+diff --git a/scripts/eval_policy.sh b/scripts/eval_policy.sh
+--- a/scripts/eval_policy.sh
++++ b/scripts/eval_policy.sh
+@@ -124,7 +124,7 @@ KIT_ENABLE_EXTS=(
+   "isaacsim.sensors.camera"
+ )
+ 
+-KIT_ARGS=""
++KIT_ARGS="${ROBODOJO_KIT_ARGS:-}"
+ for ext in "${KIT_ENABLE_EXTS[@]}"; do
+   KIT_ARGS+=" --enable ${ext}"
+ done

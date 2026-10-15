@@ -1,0 +1,12 @@
+diff --git a/src/eval_client/eval_env.py b/src/eval_client/eval_env.py
+index d2af1c0..a9d5b57 100644
+--- a/src/eval_client/eval_env.py
++++ b/src/eval_client/eval_env.py
+@@ -191,6 +191,7 @@ def create_eval_env(config, app, resume_state=None, **kwargs):
+                 trial_id=trial_id,
+                 action_case_id=action_case_id,
+                 repeat_index=self.deploy_cfg.get("repeat_index"),
++                request_timeout_s=float(os.environ.get("ROBODOJO_REQUEST_TIMEOUT_S", "120")),
+                 ws_ping_interval_s=self.deploy_cfg.get("ws_ping_interval_s", 20.0),
+                 ws_ping_timeout_s=self.deploy_cfg.get("ws_ping_timeout_s", 20.0),
+             )

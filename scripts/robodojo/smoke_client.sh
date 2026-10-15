@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # One native RoboDojo episode; this is an execution probe, not the 2100-episode benchmark.
 set -euo pipefail
+ulimit -c 0
 sim_root=""
 sim_python=""
 host="127.0.0.1"
@@ -28,9 +29,19 @@ done
 }
 sim_root="$(cd "$sim_root" && pwd)"
 sim_python="$(cd "$(dirname "$sim_python")" && pwd)/$(basename "$sim_python")"
+[[ -s "$sim_root/Assets/Robots/x5/curobo.yml" ]] || {
+  echo "Initialize robot paths first: cd '$sim_root' && '$sim_python' utils/update_embodiment_config_path.py" >&2
+  exit 2
+}
 export PATH="$(dirname "$sim_python"):$PATH"
 export OMNI_KIT_ACCEPT_EULA=YES
+export ROBODOJO_KIT_ARGS="${ROBODOJO_KIT_ARGS:-} --/app/extensions/fsWatcherEnabled=false"
+if [[ -z "${VK_ICD_FILENAMES:-}" && -s /usr/share/vulkan/icd.d/nvidia_icd.json ]]; then
+  # This container also has an empty /etc NVIDIA ICD placeholder.
+  export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json
+fi
 export ROBODOJO_MAX_BASH_RETRIES=0
+export ROBODOJO_REQUEST_TIMEOUT_S="${ROBODOJO_REQUEST_TIMEOUT_S:-1200}"
 export ROBODOJO_RUN_ID="${ROBODOJO_RUN_ID:-vpp2_smoke_$(date -u +%Y%m%d_%H%M%S)_$$}"
 exec bash "$sim_root/scripts/robodojo.sh" client --task "$task" \
   --policy-name VPP2 --policy-host "$host" --policy-port "$port" \

@@ -149,6 +149,8 @@ def server(args):
         "action_horizon=32",
         "replan_steps=24",
         f"text_encoder_device={args.text_encoder_device or 'null'}",
+        f"defer_model_load={args.defer_model_load}",
+        f"release_cuda_cache={args.release_cuda_cache}",
     ]
     print(json.dumps(dict(settings=settings, command=cmd), indent=2), flush=True)
     if args.dry_run:
@@ -295,11 +297,14 @@ def main():
     p = sub.add_parser("install-adapter")
     p.add_argument("--robodojo-root", required=True)
     p.add_argument("--source", default="policy/VPP2")
+    p.add_argument("--update", action="store_true", help="Update the existing VPP2 adapter files")
     p = sub.add_parser("server")
     for name in ("robodojo-root", "bundle", "wan"):
         p.add_argument("--" + name, required=True)
     p.add_argument("--gpu", default="0")
     p.add_argument("--text-encoder-device", choices=["cpu"], default=None)
+    p.add_argument("--defer-model-load", action="store_true", help="Load on the first observation, after simulator scene initialization")
+    p.add_argument("--release-cuda-cache", action="store_true", help="Release unused CUDA allocations after loading and each action chunk")
     p.add_argument("--port", type=int, default=19960)
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--shift", type=float)
@@ -334,7 +339,7 @@ def main():
         return write_eval_config(args)
     if args.command == "install-adapter":
         destination = Path(args.robodojo_root) / "XPolicyLab/policy/VPP2"
-        shutil.copytree(args.source, destination)  # refuse to overwrite another adapter
+        shutil.copytree(args.source, destination, dirs_exist_ok=args.update)
         print(destination.resolve())
         return
     if args.command == "convert":

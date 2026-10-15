@@ -3,8 +3,17 @@
 set -euo pipefail
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 sim_root="${ROBODOJO_ROOT:?Set ROBODOJO_ROOT to the pinned simulator checkout}"
+sim_root="$(cd "$sim_root" && pwd)"
 python_bin="${PYTHON_BIN:-python}"
 constraints="$repo_dir/environment-robodojo-cu128.txt"
+for name in robodojo_optional_kit_args robodojo_request_timeout; do
+  runtime_patch="$repo_dir/patches/$name.patch"
+  if git -C "$sim_root" apply --check "$runtime_patch" 2>/dev/null; then
+    git -C "$sim_root" apply "$runtime_patch"
+  else
+    git -C "$sim_root" apply --reverse --check "$runtime_patch"
+  fi
+done
 lab="$sim_root/third_party/IsaacLab"
 patch="$repo_dir/patches/isaaclab_isaacsim51_dependencies.patch"
 if git -C "$lab" apply --check "$patch" 2>/dev/null; then
@@ -25,3 +34,6 @@ fi
 "$python_bin" -m pip install -e "$sim_root/third_party/curobo[cu12]" \
   --no-build-isolation -c "$constraints"
 "$python_bin" -m pip check
+if [[ -d "$sim_root/Assets/Robots" ]]; then
+  (cd "$sim_root" && "$python_bin" utils/update_embodiment_config_path.py)
+fi
