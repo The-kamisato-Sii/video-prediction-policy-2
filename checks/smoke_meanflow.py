@@ -119,7 +119,7 @@ def main():
                 if d == "cuda":
                     torch.cuda.synchronize()
                 timings.append(time.perf_counter() - start)
-                losses.append(float(loss))
+                losses.append(float(loss.detach()))
             assert not torch.equal(initial, model.action_expert.head.weight)
             ckpt = out / f"{benchmark}_{objective}_{split}.pt"
             model.save_checkpoint(ckpt, opt, args.steps)

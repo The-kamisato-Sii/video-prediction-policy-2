@@ -1,0 +1,112 @@
+{
+  "date": "2026-10-15",
+  "hardware": "NVIDIA GeForce RTX 4090, reported 49140 MiB",
+  "environment": "vpp2 Python 3.10.22 / torch 2.11.0+cu128 / accelerate 1.13.0 / deepspeed 0.18.5",
+  "scope": "synthetic inputs, original MoT implementation with 40 layers and reduced widths (Video 24, Action 16); not a full-size VPP2 or benchmark result",
+  "runs": [
+    {
+      "benchmark": "robodojo",
+      "objective": "teacher_trajectory",
+      "split": "midpoint",
+      "steps": 20,
+      "layers": 40,
+      "initial_loss": 2.6928887367248535,
+      "final_loss": 1.5959457159042358,
+      "peak_memory_bytes": 55098368,
+      "checkpoint_roundtrip": true,
+      "resumed_update": true
+    },
+    {
+      "benchmark": "robodojo",
+      "objective": "data_meanflow",
+      "split": "midpoint",
+      "steps": 20,
+      "layers": 40,
+      "initial_loss": 12.697112083435059,
+      "final_loss": 3.08895206451416,
+      "peak_memory_bytes": 52128768,
+      "checkpoint_roundtrip": true,
+      "resumed_update": true
+    },
+    {
+      "benchmark": "robodojo",
+      "objective": "kmf",
+      "split": "midpoint",
+      "steps": 20,
+      "layers": 40,
+      "initial_loss": 6.619304656982422,
+      "final_loss": 2.3680577278137207,
+      "peak_memory_bytes": 57069056,
+      "checkpoint_roundtrip": true,
+      "resumed_update": true
+    },
+    {
+      "benchmark": "robodojo",
+      "objective": "kmf",
+      "split": "learned",
+      "steps": 20,
+      "layers": 40,
+      "initial_loss": 6.5430908203125,
+      "final_loss": 2.2575740814208984,
+      "peak_memory_bytes": 47967744,
+      "checkpoint_roundtrip": true,
+      "resumed_update": true
+    },
+    {
+      "benchmark": "libero",
+      "objective": "teacher_trajectory",
+      "split": "midpoint",
+      "steps": 20,
+      "layers": 40,
+      "initial_loss": 0.01717890240252018,
+      "final_loss": 0.033220600336790085,
+      "peak_memory_bytes": 33801728,
+      "checkpoint_roundtrip": true,
+      "resumed_update": true
+    },
+    {
+      "benchmark": "libero",
+      "objective": "data_meanflow",
+      "split": "midpoint",
+      "steps": 20,
+      "layers": 40,
+      "initial_loss": 10.006647109985352,
+      "final_loss": 2.1709465980529785,
+      "peak_memory_bytes": 39288320,
+      "checkpoint_roundtrip": true,
+      "resumed_update": true
+    },
+    {
+      "benchmark": "libero",
+      "objective": "kmf",
+      "split": "midpoint",
+      "steps": 20,
+      "layers": 40,
+      "initial_loss": 3.928839683532715,
+      "final_loss": 0.5687119960784912,
+      "peak_memory_bytes": 34327040,
+      "checkpoint_roundtrip": true,
+      "resumed_update": true
+    },
+    {
+      "benchmark": "libero",
+      "objective": "kmf",
+      "split": "learned",
+      "steps": 20,
+      "layers": 40,
+      "initial_loss": 3.852626085281372,
+      "final_loss": 2.4217941761016846,
+      "peak_memory_bytes": 34532864,
+      "checkpoint_roundtrip": true,
+      "resumed_update": true
+    }
+  ],
+  "unit_tests_passed": 18,
+  "distributed_test": "Two CPU Gloo ranks: policy and generator synchronization, mixed and all-diagonal intervals, empty padded batches",
+  "trainer_checks": {
+    "robodojo": "DeepSpeed ZeRO-2, accumulation=2, save at step 2 and resume to step 3; inactive generator unchanged",
+    "libero": "Accelerate, accumulation=2, save at step 2 and resume to step 3; inactive generator unchanged"
+  },
+  "full_size_training": false,
+  "closed_loop": false
+}

@@ -33,16 +33,62 @@ This codebase includes:
   <a href="assets/teaser.png"><img src="assets/teaser.png" alt="VPP2 paper overview: event-level video prediction, instruction following, and robot policy learning." width="100%"></a>
 </p>
 
+## 本机环境、训练与验证（2026-10-15）
+
+已新增可选的 D0 轨迹蒸馏、M0 MeanFlow、K0 可学习 K-MF、K1 中点 K-MF，
+保留原 FM 默认路径。完整安装、数据/权重路径、各方法训练、恢复、导出和
+RoboDojo / LIBERO 测试命令见 **[MeanFlow 使用与验证](docs/meanflow.md)**。
+
+```bash
+source /inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/miniconda/etc/profile.d/conda.sh
+conda activate vpp2
+cd /inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2
+export PYTHON_BIN="$CONDA_PREFIX/bin/python"
+
+# 将 distill 改为 mf、kmf_learned、kmf_midpoint；两个 benchmark 均有对应配置。
+bash scripts/meanflow/train.sh --benchmark robodojo \
+  --config configs/meanflow/robodojo_distill.yaml --dry-run
+bash scripts/meanflow/train.sh --benchmark libero \
+  --config configs/meanflow/libero_mf.yaml --dry-run
+
+# 数学、梯度、原路径兼容性与实际 1-NFE 检查
+PYTHONPATH=src python -m pytest -q checks/test_meanflow.py
+# 保留 40 层、缩小宽度的 GPU 工程短跑；不是完整模型或闭环结果
+PYTHONPATH=src python checks/smoke_meanflow.py --device cuda --steps 20 \
+  --output runs/new_engineering_probe
+```
+
+**验证范围：** [工程短跑记录](docs/validation/meanflow_engineering_probe.json) 包含
+两个 benchmark × 四种方法各 20 次更新、checkpoint 恢复与继续训练。
+完整模型训练、真实数据收敛和 RoboDojo 2100-episode 闭环成绩需单独验证；
+不能从这些小宽度测试推断。单张约 48 GiB 4090 无法直接承载原 ZeRO-1/2
+全参数 joint 配方以及独立 teacher。正式训练仍须按显存需求配置分布式资源。
+几何 heads / VGGT 保持关闭，等待 README 中的一步闭环验收。
+
+**完整策略推理已验证：** 原 joint-100k 权重、10 步 FM、CPU UMT5，输入合成 RGB/EE16
+后得到有限的 `32×16` 动作；3 次固定 seed 请求完全一致。同步测得 p50 **2.316 s**、
+p95 **2.385 s**，GPU 峰值 **38.41 GiB**（包含计时 instrumentation；不是闭环成功率）。
+详见 [完整策略测试记录](docs/validation/robodojo_policy_smoke_cu128.json)。
+
+```bash
+bash scripts/robodojo/smoke_policy.sh \
+  --bundle weights/robodojo_release/checkpoints/joint2b_s100000 \
+  --wan weights/robodojo_release/checkpoints/Wan2.1-I2V-14B-480P \
+  --synthetic --steps 10 --text-encoder-device cpu \
+  --output runs/new_full_policy_smoke
+```
+
+
 ## 本分支研究计划：40 层 Action DiT → 一步 MeanFlow → 几何辅助监督
 
-> **状态：实验与实现规格，尚未实现或验证。** 本次仅更新 README，不修改训练、模型或评测代码。下面标为“拟新增”的模块、配置项和命令需要后续 Codex 实现后才能使用。保留现有 VPP2 基线入口；不要把阅读本节理解为授权立即重构全部阶段。
+> **状态：以下保留原研究规格。** 阶段 1–3 的工程实现与当前已验证范围见上面的使用指南；完整基线复现、正式训练和闭环验收尚未由工程测试替代。后续几何 / VGGT 仍是待验证研究计划。
 
 ### Material Passport
 
 - 类型：代码实验计划；使用 academic-research-suite / experiment-agent 的实验规划流程。
 - 源码核查日期：2026-10-15；目标分支：`baseline-setup`。
 - 核查提交：[`4b0540937a6c8ee1d44fd1d887ec1041bae3da6e`](https://github.com/The-kamisato-Sii/video-prediction-policy-2/tree/4b0540937a6c8ee1d44fd1d887ec1041bae3da6e)。后续实现若基于新提交，先核对本节的路径、符号和配置差异。
-- 验证状态：源码与协议已阅读；训练、GPU 数值检查、闭环评测均未执行；下文没有新实验结果。
+- 计划撰写时仅完成源码与协议核查。当前工程短跑和完整 FM 策略推理记录见上方；本研究规格中的正式训练与闭环成绩仍待验证。
 - 实验假设、建议默认值和验收阈值属于本项目设计，不是论文已证明的结论。
 
 ### 1. 实验目的与阶段边界
@@ -242,9 +288,9 @@ $$
 
 先核验普通 attention 数学实现上的 JVP，再测试实际 SDPA/FlashAttention、gradient checkpointing、bf16、DDP/DeepSpeed 组合；以实际安装版本为准。短跑要验证各 rank 的参数/梯度同步，不允许用 `model.module` 绕过 wrapper 后忽略分布式同步。主预测和导数分支如含随机算子，应使用一致随机实现；不支持时显式关闭并报告差异。
 
-### 7. 代码改动地图：给后续 Codex 的实施顺序
+### 7. 代码改动地图与后续扩展
 
-下表是**待实施规格**，不是当前仓库功能声明。优先新增独立 objective/model/trainer 层，保留 legacy FM 默认行为；不先重写 40 层 MoT。
+下表保留设计与验收要求。MF/KMF 工程实现已加入；当前验证范围见顶部与 `docs/meanflow.md`，几何扩展及完整闭环验收仍待完成。实现使用独立 objective/model 层，保留 legacy FM 默认行为和原 40 层 MoT。
 
 | 当前位置 / 拟新增位置 | 要做的修改 |
 |---|---|
@@ -270,7 +316,7 @@ $$
 
 ### 8. 拟新增配置与命令契约
 
-保留原 YAML 不动，新增以下配置（这些文件目前不存在）：
+保留原 YAML 不动，新增以下配置（对应文件现已新增，使用方法以 docs/meanflow.md 为准）：
 
 ```text
 configs/meanflow/robodojo_distill.yaml
@@ -283,7 +329,7 @@ configs/meanflow/{robodojo,libero}_kmf_midpoint.yaml
 每个配置从对应 benchmark 配方生成并保存完整 resolved config。至少新增以下字段；尖括号是必须填写的路径，不是可运行参数：
 
 ```yaml
-# 拟新增配置 schema；当前代码尚未支持。
+# 已实现配置 schema；explicit_hybrid 与几何扩展暂不支持。
 meanflow:
   objective: teacher_trajectory  # data_meanflow / kmf / explicit_hybrid
   time_convention: clean0_noise1
@@ -313,9 +359,9 @@ inference:
   action_nfe: 1
 ```
 
-后续 Codex 新增 `scripts/meanflow/train.sh --benchmark ... --config ...`，内部复用 `scripts/train.sh` 和对应 benchmark 的环境、Accelerate/DeepSpeed 配置；新增 `vpp2.meanflow.cli` 或等价的显式入口。禁止让 RoboDojo 的 12-node 默认值意外用于单机短跑。新脚本应支持现有 `--dry-run` 与 `key=value` override，并在没有必要文件/硬件配置时清楚失败。
+已新增 `scripts/meanflow/train.sh --benchmark ... --config ...`，内部复用 `scripts/train.sh` 和对应 benchmark 的环境、Accelerate/DeepSpeed 配置；使用 `vpp2.meanflow.cli` 显式入口。禁止让 RoboDojo 的 12-node 默认值意外用于单机短跑。新脚本应支持现有 `--dry-run` 与 `key=value` override，并在没有必要文件/硬件配置时清楚失败。
 
-实现完成后预期的调用形态如下（**现在不要运行**）：
+调用形态如下（先补齐真实数据、配对权重和足够的训练资源）：
 
 ```bash
 bash scripts/meanflow/train.sh --benchmark libero \

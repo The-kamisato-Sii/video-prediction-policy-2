@@ -475,3 +475,25 @@ def test_fm_continuation_provenance_survives_resume(tmp_path):
     evaluation.source_action_step = 20
     with pytest.raises(ValueError):
         validate_config(evaluation)
+
+
+
+def test_libero_worker_strips_meanflow_training_factory(tmp_path):
+    from omegaconf import OmegaConf
+    from vpp2.meanflow.cli import load_config
+    from vpp2.libero.evaluate import worker_config
+
+    training = load_config('configs/meanflow/libero_distill.yaml')
+    training_file = tmp_path / 'training.yaml'
+    OmegaConf.save(training, training_file, resolve=True)
+    cfg = OmegaConf.load('configs/libero/eval_standard.yaml')
+    cfg.training_config = str(training_file)
+    cfg.action_sampler = 'meanflow'
+    cfg.action_nfe = 1
+    cfg.action_step = 20
+    cfg.source_action_step = 30000
+    worker = worker_config(cfg, tmp_path / 'out', tmp_path / 'tasks.txt', 0, None)
+    assert worker.model._target_ == 'vpp2.libero.runtime.create_action_model'
+    assert 'meanflow' not in worker.model and 'benchmark' not in worker.model
+    assert worker.model.action_dit_config.meanflow
+    assert worker.EVALUATION.num_inference_steps == 1

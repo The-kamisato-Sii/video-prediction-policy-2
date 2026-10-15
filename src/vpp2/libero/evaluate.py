@@ -102,7 +102,14 @@ def worker_config(cfg, output, manifest, gpu, seed_id):
     c = OmegaConf.load(cfg.training_config)
     from .cli import validate_training_config
 
-    validate_training_config(c)
+    validate_training_config(c, require_portable_target=False)
+    # A saved MF training config constructs an independent teacher and optimizer-only
+    # generator. Evaluation must instantiate the deployment model instead.
+    c.model.pop("meanflow", None)
+    c.model.pop("benchmark", None)
+    c.model._target_ = "vpp2.libero.runtime.create_action_model"
+    if cfg.get("action_sampler", "flow_matching") == "meanflow":
+        c.model.action_dit_config.meanflow = True
     c.model.model_id = str(Path(cfg.wan_model_dir).resolve())
     c.model.tokenizer_model_id = str(Path(cfg.wan_model_dir).resolve() / "google/umt5-xxl")
     c.model.dit_checkpoint_path = str(Path(cfg.video_checkpoint).resolve())
