@@ -38,6 +38,8 @@ This codebase includes:
 已新增可选的 D0 轨迹蒸馏、M0 MeanFlow、K0 可学习 K-MF、K1 中点 K-MF，
 保留原 FM 默认路径。完整安装、数据/权重路径、各方法训练、恢复、导出和
 RoboDojo / LIBERO 测试命令见 **[MeanFlow 使用与验证](docs/meanflow.md)**。
+其中 [各方法训练命令](docs/meanflow.md#commands-for-every-method) 覆盖 B0 原始 FM、
+B1 同权重一步推理、B2 FM 续训，以及 D0 / M0 / K0 / K1；B1 不需要重新训练。
 
 ```bash
 source /inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/miniconda/etc/profile.d/conda.sh
@@ -52,7 +54,8 @@ bash scripts/meanflow/train.sh --benchmark libero \
   --config configs/meanflow/libero_mf.yaml --dry-run
 
 # 数学、梯度、原路径兼容性与实际 1-NFE 检查
-PYTHONPATH=src python -m pytest -q checks/test_meanflow.py
+PYTHONPATH=src OMP_NUM_THREADS=2 python -m pytest -q \
+  checks/test_meanflow.py checks/test_robodojo_adapter.py checks/test_clip_offload.py
 # 保留 40 层、缩小宽度的 GPU 工程短跑；不是完整模型或闭环结果
 PYTHONPATH=src python checks/smoke_meanflow.py --device cuda --steps 20 \
   --output runs/new_engineering_probe
@@ -77,6 +80,32 @@ bash scripts/robodojo/smoke_policy.sh \
   --synthetic --steps 10 --text-encoder-device cpu \
   --output runs/new_full_policy_smoke
 ```
+
+**同卡 RoboDojo 原生闭环已验证：** 本机约 48 GiB 的 RTX 4090 同时运行策略和
+Isaac Sim，`stack_bowls` / layout 0 在第 **330 / 800** 步成功，单回合得分 **100**。
+三路视频均为 331 帧且解码通过，客户端正常退出；整卡显存每 2 秒采样峰值
+**45.60 GiB**。这是一次部署验证，不能作为 2100-episode 的基准成绩或 MeanFlow 成绩。
+[完整记录](docs/validation/robodojo_native_stack_bowls_b0.json)；本地视频、评分和日志位于
+`runs/robodojo_native_stack_bowls_b0/`。
+
+```bash
+# 终端 1：vpp2 环境，工作目录为本仓库。
+bash scripts/robodojo/install_adapter.sh --robodojo-root ../RoboDojo --update
+PYTORCH_ALLOC_CONF=expandable_segments:True bash scripts/robodojo/server.sh \
+  --robodojo-root ../RoboDojo \
+  --bundle "$PWD/weights/robodojo_release/checkpoints/joint2b_s100000" \
+  --wan "$PWD/weights/robodojo_release/checkpoints/Wan2.1-I2V-14B-480P" \
+  --gpu 0 --port 23000 --text-encoder-device cpu \
+  --defer-model-load --release-cuda-cache --offload-clip
+
+# 终端 2：同一工作目录，脚本使用独立的 robodojo 环境。
+bash scripts/robodojo/smoke_client.sh --robodojo-root ../RoboDojo \
+  --sim-python ../miniconda/envs/robodojo/bin/python --port 23000 --task stack_bowls
+```
+
+冷启动需要数分钟。CLIP 仍在 GPU 上计算，随后将权重移回 CPU，为视频模型留出显存；
+同一输入及 seed 的完整策略对比中，卸载前后的 `24×16` 动作完全一致。
+现有 22 项单元测试通过；正式训练所需的数据和分布式资源限制见上方验证范围。
 
 
 ## 本分支研究计划：40 层 Action DiT → 一步 MeanFlow → 几何辅助监督

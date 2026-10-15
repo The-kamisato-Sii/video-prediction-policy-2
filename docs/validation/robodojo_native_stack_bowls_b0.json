@@ -1,0 +1,106 @@
+{
+  "kind": "native_robodojo_single_episode",
+  "date_utc": "2026-10-15",
+  "runtime_commit": "c87ff11",
+  "execution_passed": true,
+  "closed_loop": true,
+  "full_benchmark": false,
+  "benchmark_note": "One layout of one task; not the 2100-episode benchmark or a MeanFlow evaluation.",
+  "run_id": "vpp2_b0_stack_bowls_20261015_offload",
+  "task": "stack_bowls",
+  "environment": "arx_x5",
+  "num_envs": 1,
+  "layout_seed": 0,
+  "policy_seed": 1,
+  "checkpoint": "joint2b_s100000",
+  "action_sampler": "flow_matching",
+  "action_nfe": 10,
+  "action_horizon": 32,
+  "replan_steps": 24,
+  "last_control_step": 330,
+  "max_control_steps": 800,
+  "native_result": {
+    "success_rate": 1.0,
+    "eval_time": 1,
+    "score": 100.0,
+    "details": {
+      "0": {
+        "layout_id": 0,
+        "success": true,
+        "score": 1.0
+      }
+    }
+  },
+  "native_client_exit_code": 0,
+  "unstable_episodes": 0,
+  "placement": {
+    "gpu": 0,
+    "policy_and_simulator_share_gpu": true,
+    "text_encoder": "cpu",
+    "clip": "gpu_compute_cpu_between_calls",
+    "defer_model_load": true,
+    "release_cuda_cache": true,
+    "allocator": "expandable_segments:True"
+  },
+  "gpu": {
+    "name": "NVIDIA GeForce RTX 4090",
+    "total_mib": 49140,
+    "sampled_device_peak_mib": 46690,
+    "sampled_device_peak_gib": 45.595703125,
+    "sample_interval_seconds": 2,
+    "note": "Whole-device NVML samples, including simulator and an unrelated idle 416 MiB CUDA context; not an exact allocator peak."
+  },
+  "isaac_client_startup_through_shutdown_seconds": 820.515,
+  "policy_environment": "miniconda/envs/vpp2 (Python 3.10, PyTorch 2.11 cu128)",
+  "simulator_environment": "miniconda/envs/robodojo (Python 3.11, PyTorch 2.7 cu128, Isaac Sim 5.1.0)",
+  "asset_revision": "35efbc7dedfdbeeb6e95fb749bd885d73d483e41",
+  "artifacts_directory": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/runs/robodojo_native_stack_bowls_b0",
+  "videos": [
+    {
+      "path": "runs/robodojo_native_stack_bowls_b0/episode_0000000_cam_head_success.mp4",
+      "sha256": "6531fc0a0f08ce1624f344bc200f988dea218e41a97b1976c71891a6f93df9c8",
+      "width": 640,
+      "height": 480,
+      "frames": 331,
+      "duration_seconds": 13.24,
+      "decode_passed": true
+    },
+    {
+      "path": "runs/robodojo_native_stack_bowls_b0/episode_0000000_cam_left_wrist_success.mp4",
+      "sha256": "413cf00426b2ba9eb6e25a0641ab1e860197403313f3cc0ced9123a069e88068",
+      "width": 640,
+      "height": 480,
+      "frames": 331,
+      "duration_seconds": 13.24,
+      "decode_passed": true
+    },
+    {
+      "path": "runs/robodojo_native_stack_bowls_b0/episode_0000000_cam_right_wrist_success.mp4",
+      "sha256": "7aa866287ea3d8bbcb32cbe836c9d7cc4d0b4e0c45473a310ac7f3f343e5a448",
+      "width": 640,
+      "height": 480,
+      "frames": 331,
+      "duration_seconds": 13.24,
+      "decode_passed": true
+    }
+  ],
+  "client_error_traceback_count": 0,
+  "full_policy_offload_equivalence": {
+    "kind": "post_episode_synthetic_websocket_comparison",
+    "closed_loop": false,
+    "reference": "runs/robodojo_websocket_sim_client/actions.npy",
+    "candidate": "runs/robodojo_websocket_clip_offload/actions.npy",
+    "shape": [
+      24,
+      16
+    ],
+    "exact_equal": true,
+    "max_absolute_difference": 0.0,
+    "request_seconds": 2.2346301190555096,
+    "note": "Single request, not a latency percentile. Reset, input, checkpoint, shift and seed match the prior non-offloaded FM server."
+  },
+  "regression_tests": {
+    "tests_passed": 22,
+    "clip_offload_final_recheck_passed": 2
+  }
+}

@@ -85,8 +85,11 @@ in `environment-robodojo-cu128.txt`; `environment-robodojo-cu128.lock.txt` recor
 installed non-editable packages. Isaac Sim completed a headless Vulkan startup
 and three updates with no extension errors; see the
 [startup record](validation/isaacsim_headless_startup.json).
-Native closed-loop validation is still being completed; the full-policy smoke
-below does not require the simulator.
+Native single-episode closed-loop validation passed: `stack_bowls`, layout 0,
+joint-100k FM-10, success at control step 330 of 800, score 100, client exit 0.
+All three 640×480 videos contain 331 frames and decode successfully. See the
+[native validation record](validation/robodojo_native_stack_bowls_b0.json).
+This is one successful episode, not the full 2100-episode benchmark.
 
 ## Initialization
 
@@ -338,6 +341,14 @@ bash scripts/robodojo/smoke_client.sh --robodojo-root ../RoboDojo \
 This preserves the task's native reset, control and scoring logic, but runs only
 one episode. Its result is a deployment probe and must not be reported as the
 full benchmark's SR. Use the original 2100-episode evaluation/audit for that.
+The recorded run completed successfully with both processes on GPU 0. Whole-device
+NVML sampling every 2 s peaked at **46,690 MiB (45.60 GiB)**, including the
+simulator and an unrelated idle 416 MiB CUDA context. This is a sampled device
+peak, not a precise PyTorch allocation peak. Local logs, native scores and videos
+are preserved in `runs/robodojo_native_stack_bowls_b0/`.
+After the episode, a reset synthetic websocket request produced **exactly the
+same 24×16 actions** as the prior non-offloaded full FM server (maximum absolute
+difference 0). This comparison checks output preservation, not benchmark quality.
 The smoke wrapper allows 1200 s per request and for Kit's hang detector during
 cold model loading, via the
 optional `robodojo_request_timeout.patch`. The upstream default remains 120 s
