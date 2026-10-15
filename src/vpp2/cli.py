@@ -149,6 +149,7 @@ def server(args):
         "action_horizon=32",
         "replan_steps=24",
         f"text_encoder_device={args.text_encoder_device or 'null'}",
+        f"offload_clip={args.offload_clip}",
         f"defer_model_load={args.defer_model_load}",
         f"release_cuda_cache={args.release_cuda_cache}",
     ]
@@ -303,6 +304,7 @@ def main():
         p.add_argument("--" + name, required=True)
     p.add_argument("--gpu", default="0")
     p.add_argument("--text-encoder-device", choices=["cpu"], default=None)
+    p.add_argument("--offload-clip", action="store_true", help="Run CLIP on GPU then move its weights to CPU before video prefill")
     p.add_argument("--defer-model-load", action="store_true", help="Load on the first observation, after simulator scene initialization")
     p.add_argument("--release-cuda-cache", action="store_true", help="Release unused CUDA allocations after loading and each action chunk")
     p.add_argument("--port", type=int, default=19960)

@@ -154,6 +154,7 @@ class RoboDojoVPP2Policy:
         seed=1,
         replan_steps=24,
         text_encoder_device=None,
+        offload_clip=False,
     ):
         checkpoint_path = Path(checkpoint_path).resolve()
         payload = torch.load(checkpoint_path, map_location="cpu", mmap=True, weights_only=True)
@@ -203,6 +204,7 @@ class RoboDojoVPP2Policy:
         # Construct on CPU when offloading T5, avoiding an initial all-model CUDA peak.
         construct_device = "cpu" if text_encoder_device == "cpu" else device
         model = instantiate(model_cfg, model_dtype=_model_dtype(mixed_precision), device=construct_device)
+        model.offload_clip = bool(offload_clip)
         if text_encoder_device == "cpu":
             model.device = torch.device(device)
             model.mot.to(device)
@@ -210,6 +212,8 @@ class RoboDojoVPP2Policy:
             model._restore_auxiliary_component_dtypes()
         elif text_encoder_device is not None:
             raise ValueError("text_encoder_device must be null (legacy) or cpu")
+        elif offload_clip:
+            model._restore_auxiliary_component_dtypes()
         model.action_expert.load_state_dict(payload["action_expert"], strict=True)
         model.proprio_encoder.load_state_dict(payload["proprio_encoder"], strict=True)
         model.action_sampler = "meanflow" if is_meanflow else "flow_matching"
@@ -473,4 +477,5 @@ def get_model(args):
         seed=args.get("seed", 1),
         replan_steps=args.get("replan_steps") or 24,
         text_encoder_device=args.get("text_encoder_device"),
+        offload_clip=args.get("offload_clip", False),
     )

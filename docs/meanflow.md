@@ -50,7 +50,7 @@ The pinned checkouts are RoboDojo `08b7ee4`, IsaacLab
 `bb9a0b5f5136a74503b679af830bfd0a3a837d5c`.
 
 On this Ubuntu container, headless rendering also needs the system packages
-`libvulkan1 ffmpeg libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 libxt6 libglu1-mesa`. Install these
+`git-lfs libvulkan1 ffmpeg libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 libxt6 libglu1-mesa`. Install these
 with the system package manager before starting Isaac Sim. NVIDIA's Vulkan ICD
 must be available in addition to CUDA; a successful PyTorch CUDA check alone
 does not verify rendering.
@@ -208,6 +208,8 @@ combined with these objectives.
 ```bash
 python -m pip install pytest
 PYTHONPATH=src OMP_NUM_THREADS=2 python -m pytest -q checks/test_meanflow.py
+PYTHONPATH=src OMP_NUM_THREADS=2 python -m pytest -q \
+  checks/test_robodojo_adapter.py checks/test_clip_offload.py
 PYTHONPATH=src OMP_NUM_THREADS=2 python checks/smoke_meanflow.py \
   --device cuda --steps 20 --layers 40 --output runs/NEW_ENGINEERING_PROBE
 PYTHONPATH=src OMP_NUM_THREADS=2 python -m torch.distributed.run \
@@ -226,6 +228,10 @@ establish full-size memory feasibility, real-data convergence or closed-loop SR.
 [Recorded engineering results](validation/meanflow_engineering_probe.json) identify
 the exact scope and environment. Actual trainer tests require CUDA development
 tools whenever the installed Accelerate imports DeepSpeed.
+The 22 unit tests passed on this host, including exact feature equality with
+CLIP offloading on CPU/CUDA and return to CPU after an encoder exception. The
+CLIP test retains native preprocessing and transformer code at reduced width;
+the native episode below separately exercises the full released model.
 
 ## Export and RoboDojo inference
 
@@ -300,21 +306,26 @@ B2 provenance and its frozen Video SHA-256 must match; merely changing a step
 label cannot bypass these checks.
 
 
-For the 48 GiB host sharing GPU 0 between both processes, use deferred loading.
+For the 48 GiB host sharing GPU 0 between both processes, use deferred loading
+and CLIP weight offloading.
 Eagerly loading the policy before the first scene reset caused NVTT texture
 compression to run out of memory. The native client connects before creating the
 scene, so merely swapping the two shell commands is insufficient. This mode
 loads the complete policy on the first observation, after scene reset, and
-releases unused CUDA allocator blocks after loading and each action chunk:
+releases unused CUDA allocator blocks after loading and each action chunk.
+Deferral alone still exhausted memory during video prefill with the simulator
+resident. `--offload-clip` keeps the reference FP16 GPU CLIP computation, then
+moves its weights back to CPU before video prefill (also on an encoder error).
+It does not change image size, model layers, task physics, or action horizon:
 
 ```bash
 # Policy environment / terminal 1; --update refreshes the copied adapter.
 bash scripts/robodojo/install_adapter.sh --robodojo-root ../RoboDojo --update
-bash scripts/robodojo/server.sh --robodojo-root ../RoboDojo \
+PYTORCH_ALLOC_CONF=expandable_segments:True bash scripts/robodojo/server.sh --robodojo-root ../RoboDojo \
   --bundle "$PWD/weights/robodojo_release/checkpoints/joint2b_s100000" \
   --wan "$PWD/weights/robodojo_release/checkpoints/Wan2.1-I2V-14B-480P" \
   --gpu 0 --port 23000 --text-encoder-device cpu \
-  --defer-model-load --release-cuda-cache
+  --defer-model-load --release-cuda-cache --offload-clip
 ```
 
 Run the native single-episode client in another terminal:
@@ -327,7 +338,8 @@ bash scripts/robodojo/smoke_client.sh --robodojo-root ../RoboDojo \
 This preserves the task's native reset, control and scoring logic, but runs only
 one episode. Its result is a deployment probe and must not be reported as the
 full benchmark's SR. Use the original 2100-episode evaluation/audit for that.
-The smoke wrapper allows 1200 s per request for cold model loading, via the
+The smoke wrapper allows 1200 s per request and for Kit's hang detector during
+cold model loading, via the
 optional `robodojo_request_timeout.patch`. The upstream default remains 120 s
 when `ROBODOJO_REQUEST_TIMEOUT_S` is unset. These deployment options change memory
 usage and latency; compare methods with identical placement and cache settings.

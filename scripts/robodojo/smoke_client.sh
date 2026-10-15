@@ -35,7 +35,7 @@ sim_python="$(cd "$(dirname "$sim_python")" && pwd)/$(basename "$sim_python")"
 }
 export PATH="$(dirname "$sim_python"):$PATH"
 export OMNI_KIT_ACCEPT_EULA=YES
-export ROBODOJO_KIT_ARGS="${ROBODOJO_KIT_ARGS:-} --/app/extensions/fsWatcherEnabled=false"
+export ROBODOJO_KIT_ARGS="${ROBODOJO_KIT_ARGS:-} --/app/extensions/fsWatcherEnabled=false --/app/hangDetector/timeout=1200"
 if [[ -z "${VK_ICD_FILENAMES:-}" && -s /usr/share/vulkan/icd.d/nvidia_icd.json ]]; then
   # This container also has an empty /etc NVIDIA ICD placeholder.
   export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json

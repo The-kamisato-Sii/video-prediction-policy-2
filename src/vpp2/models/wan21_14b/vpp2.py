@@ -479,7 +479,8 @@ class VPP2(torch.nn.Module):
         """Keep Wan I2V helper modules aligned with the reference generation path."""
         if self.clip_encoder is not None:
             self.clip_encoder.eval().requires_grad_(False).to(
-                device=self.device, dtype=torch.float16
+                device="cpu" if getattr(self, "offload_clip", False) else self.device,
+                dtype=torch.float16,
             )
         self.vae.eval().requires_grad_(False).to(device=self.device, dtype=torch.float32)
 
@@ -622,7 +623,19 @@ class VPP2(torch.nn.Module):
             video_tensor[i].to(device=self.device, dtype=torch.float16)
             for i in range(video_tensor.shape[0])
         ]
-        return self.clip_encoder(videos).to(device=self.device, dtype=self.torch_dtype)
+        # Keep the reference GPU computation, but optionally release the CLIP
+        # weights before the much larger video-cache prefill. This is an
+        # inference-only placement option for a GPU shared with the simulator.
+        offload = getattr(self, "offload_clip", False)
+        try:
+            if offload:
+                self.clip_encoder.to(device=self.device)
+            return self.clip_encoder(videos).to(device=self.device, dtype=self.torch_dtype)
+        finally:
+            if offload:
+                self.clip_encoder.to(device="cpu")
+                if self.device.type == "cuda":
+                    torch.cuda.empty_cache()
 
     @torch.no_grad()
     def _encode_clip_fea_from_image(self, input_image: torch.Tensor) -> torch.Tensor:

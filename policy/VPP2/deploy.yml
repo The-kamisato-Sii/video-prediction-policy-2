@@ -25,6 +25,8 @@ default_instruction: follow the instruction
 
 # Set cpu to keep UMT5 off the GPU on memory-constrained policy hosts.
 text_encoder_device: null
+# Keep reference GPU CLIP computation; park its weights on CPU between calls.
+offload_clip: false
 # Opt-in for a policy and simulator sharing one GPU; load on first observation.
 defer_model_load: false
 release_cuda_cache: false

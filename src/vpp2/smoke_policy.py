@@ -27,6 +27,7 @@ def main():
     p.add_argument("--warmup", type=int, default=1)
     p.add_argument("--requests", type=int, default=3)
     p.add_argument("--text-encoder-device", choices=["cpu"])
+    p.add_argument("--offload-clip", action="store_true")
     p.add_argument("--output", required=True)
     args = p.parse_args()
     if args.requests < 1 or args.warmup < 0:
@@ -62,6 +63,7 @@ def main():
         args.wan,
         num_inference_steps=args.steps,
         text_encoder_device=args.text_encoder_device,
+        offload_clip=args.offload_clip,
     )
     torch.cuda.synchronize()
     load_seconds = time.perf_counter() - start
@@ -151,6 +153,7 @@ def main():
         shift=1,
         seed=1,
         text_encoder_device=args.text_encoder_device or "cuda",
+        offload_clip=args.offload_clip,
         load_seconds=load_seconds,
         seconds=timings,
         p50_seconds=float(np.percentile(timings, 50)),
