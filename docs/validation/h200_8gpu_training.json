@@ -1,0 +1,157 @@
+{
+  "date_utc": "2026-10-15T15:53:17.442653+00:00",
+  "base_commit": "5ab7b0a3187923805c47e563cc75ac8164c4f2db",
+  "scope": "Synthetic engineering validation, not real-data training/convergence or benchmark evaluation",
+  "hardware": {
+    "gpus": 8,
+    "gpu": "NVIDIA H200",
+    "memory_gib": 139.81158447265625,
+    "cpu_cores": 160,
+    "container_memory_gib": 1800,
+    "driver": "570.124.06"
+  },
+  "environment": {
+    "torch": "2.11.0+cu128",
+    "cuda": "12.8",
+    "nccl": [
+      2,
+      28,
+      9
+    ]
+  },
+  "communication": {
+    "status": "PASS",
+    "backend": "nccl",
+    "all_reduce_sum": 36,
+    "bf16_backward_all_ranks": true,
+    "finite_gradient_collective_all_ranks": true
+  },
+  "unit_tests": {
+    "passed": 22,
+    "warnings": "18 PyTorch TorchScript deprecation warnings"
+  },
+  "small_model_trainers": {
+    "robodojo": {
+      "status": "PASS",
+      "world_size": 8,
+      "zero_stage": 2,
+      "initial_updates": 2,
+      "resume_from": 2,
+      "resumed_to": 3,
+      "accumulation": 2,
+      "optimizer_parameter_groups_unique_and_complete": true
+    },
+    "libero": {
+      "status": "PASS",
+      "world_size": 8,
+      "zero_stage": 2,
+      "initial_updates": 2,
+      "resume_from": 2,
+      "resumed_to": 3,
+      "accumulation": 2,
+      "optimizer_parameter_groups_unique_and_complete": true
+    }
+  },
+  "fullsize_robodojo": {
+    "mf": {
+      "status": "PASS",
+      "world_size": 8,
+      "zero_stage": 2,
+      "updates_per_rank": 2,
+      "micro_batch": 1,
+      "accumulation": 1,
+      "global_batch": 8,
+      "trainable_parameters": 18424996688,
+      "video_shape": [
+        1,
+        3,
+        17,
+        240,
+        416
+      ],
+      "action_shape": [
+        1,
+        32,
+        16
+      ],
+      "max_train_seconds": 82.00236755982041,
+      "max_setup_seconds": 472.43896319530904,
+      "peak_allocated_gib": 78.69017267227173,
+      "peak_reserved_gib": 96.59375,
+      "loss_min": 13.768936157226562,
+      "loss_max": 577.663330078125,
+      "sampled_video_action_proprio_gradients_finite_nonzero_all_ranks": true,
+      "gradient_probes": [
+        "video_expert.patch_embedding.weight",
+        "action_expert.head.weight",
+        "proprio_encoder.weight"
+      ],
+      "action_head_max_abs_change_min_across_ranks": 0.000244140625,
+      "checkpoint_provenance": {
+        "student": {
+          "format": "deployment_pair",
+          "action_checkpoint": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/weights/robodojo_release/checkpoints/joint2b_s100000/action.pt",
+          "video_checkpoint": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/weights/robodojo_release/checkpoints/joint2b_s100000/video.pt",
+          "action_sha256": "e3c8bb0e787c6f10e38afc154c75855a0f8b90d747fc5d8767c367d2050e8933",
+          "video_sha256": "89139f7d043e7c9ad9d24f394e442ce23291e06ef63d1aa44eea1594665e08c4",
+          "source_step": 100000,
+          "video_source_step": 100000
+        },
+        "teacher": null
+      }
+    },
+    "kmf_learned": {
+      "status": "INTERRUPTED_PREEMPTED",
+      "phase": "optimizer setup",
+      "validated_updates": 0
+    },
+    "kmf_midpoint": {
+      "status": "NOT_RUN_NO_CAPACITY"
+    },
+    "distill": {
+      "status": "NOT_RUN_NO_CAPACITY"
+    }
+  },
+  "artifacts": "runs/h200_8gpu_validation",
+  "limitations": [
+    "Synthetic RGB/action/text inputs; no real training dataset loader or convergence validation",
+    "Full-size diagnostic global batch 8, not reference 288",
+    "Full-size M0 has only two optimizer updates, not a training schedule; other full-size methods are incomplete.",
+    "Full-size checkpoint save/resume not tested; small-model trainer save/resume tested",
+    "No MeanFlow closed-loop success rate measured",
+    "Full-size LIBERO weights not tested"
+  ],
+  "resource_interruption": {
+    "time_utc": "2026-10-15T15:45:31Z",
+    "event": "Pod is evicted, because of preempt",
+    "notebook": "vpp2-8h200-1015-1517",
+    "subsequent_status": "PENDING",
+    "available_H200_nodes_at_1549_utc": 0,
+    "final_notebook_status": "STOPPED",
+    "cleanup": "Stopped pending notebook after confirming no idle H200 nodes, to avoid later idle allocation."
+  },
+  "probe_sha256": {
+    "checks/multigpu_preflight.py": "8cfde22e2dbc9c02f41ba9a7c7c6673f806dd2f2244d7274056cd385464ae588",
+    "checks/fullsize_meanflow.py": "f2f0795a89cc6de31096821cff3a1153b2792229effcf2346a22691141068653",
+    "checks/trainer_meanflow.py": "0e46ac226a0e9de580e9cd0a6e74bed5deb6cdc0f62c7fe64d4a3f07d6557c5c"
+  },
+  "small_model_trainers_note": "Eight-GPU checks preceded the test-helper device selection/single-writer fix; that fix was separately verified below.",
+  "test_helper_fix_regression": {
+    "robodojo": {
+      "status": "PASS",
+      "world_size": 2,
+      "device": "cpu",
+      "backend": "gloo",
+      "initial_updates": 2,
+      "resumed_to": 3
+    },
+    "libero": {
+      "status": "PASS",
+      "world_size": 2,
+      "device": "cpu",
+      "backend": "gloo",
+      "initial_updates": 2,
+      "resumed_to": 3
+    }
+  }
+}

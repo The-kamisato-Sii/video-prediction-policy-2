@@ -5,6 +5,7 @@ import types
 from pathlib import Path
 
 import torch
+from accelerate import PartialState
 from omegaconf import OmegaConf
 from test_meanflow import tiny_model
 
@@ -58,6 +59,8 @@ def main():
     p.add_argument("--steps", type=int, default=2)
     p.add_argument("--diagonal", type=float, default=0.5)
     args = p.parse_args()
+    state = PartialState()
+    torch.manual_seed(42)
     robo = args.benchmark == "robodojo"
     cfg = OmegaConf.load(
         "configs/robodojo/train_100k.yaml" if robo else "configs/libero/train_action.yaml"
@@ -82,7 +85,7 @@ def main():
         cfg.joint_learning_rates.action = 0.001
     model = tiny_model(
         MeanFlowVPP2 if robo else MeanFlowLibero,
-        device="cuda" if torch.cuda.is_available() else "cpu",
+        device=str(state.device),
     )
     model.build_inputs = types.MethodType(build, model)
     model.configure_meanflow(
@@ -96,9 +99,12 @@ def main():
         {"synthetic": True},
     )
     if not robo:
-        video = Path(args.output).parent / "fake_video.pt"
-        if not video.exists():
-            torch.save({"dit": model.video_expert.state_dict(), "step": 10000}, video)
+        video = Path(args.output) / "fake_video.pt"
+        # One writer must finish before other ranks read the shared checkpoint.
+        with state.main_process_first():
+            video.parent.mkdir(parents=True, exist_ok=True)
+            if not video.exists():
+                torch.save({"dit": model.video_expert.state_dict(), "step": 10000}, video)
         cfg.frozen_video_checkpoint = str(video)
     cls = JointTrainer if robo else LiberoTrainer
     trainer = cls(model, Dataset(), cfg=cfg)

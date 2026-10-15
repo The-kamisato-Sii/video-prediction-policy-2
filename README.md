@@ -63,10 +63,19 @@ PYTHONPATH=src python checks/smoke_meanflow.py --device cuda --steps 20 \
 
 **验证范围：** [工程短跑记录](docs/validation/meanflow_engineering_probe.json) 包含
 两个 benchmark × 四种方法各 20 次更新、checkpoint 恢复与继续训练。
-完整模型训练、真实数据收敛和 RoboDojo 2100-episode 闭环成绩需单独验证；
+完整训练配方、真实数据收敛和 RoboDojo 2100-episode 闭环成绩需单独验证；
 不能从这些小宽度测试推断。单张约 48 GiB 4090 无法直接承载原 ZeRO-1/2
 全参数 joint 配方以及独立 teacher。正式训练仍须按显存需求配置分布式资源。
 几何 heads / VGGT 保持关闭，等待 README 中的一步闭环验收。
+
+**8×H200 验证：** NCCL 通信、BF16 反向传播，以及两个 benchmark 的小模型
+ZeRO-2 保存/恢复均通过。原尺寸 M0（Video / Action 均为 40 层，约 184 亿可训练参数）
+已在 8 卡上各完成 2 次优化器更新，真实 VAE/CLIP 编码、Video/Action/proprio 抽样梯度及
+Action 权重变化均通过检查；PyTorch 已分配显存峰值 **78.69 GiB/卡**，预留峰值
+**96.59 GiB/卡**。输入为合成数据，全局 batch 为 8，不能代替 batch 288 的正式训练。
+平台随后于 2026-10-15 15:45 UTC 抢占实例：K0 在优化器初始化阶段中断，K1/D0
+尚未执行原尺寸测试。[验证记录](docs/validation/h200_8gpu_training.json) 与
+[复跑命令](docs/meanflow.md#eight-gpu-h200-diagnostics) 已保存。
 
 **完整策略推理已验证：** 原 joint-100k 权重、10 步 FM、CPU UMT5，输入合成 RGB/EE16
 后得到有限的 `32×16` 动作；3 次固定 seed 请求完全一致。同步测得 p50 **2.316 s**、

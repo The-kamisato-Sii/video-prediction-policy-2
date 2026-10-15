@@ -37,8 +37,70 @@ frozen teacher. The original joint recipe cannot simply be run on one 48 GiB GPU
 with ZeRO-1/2. A single-GPU dry run is a launch/configuration check, **not a claim
 that full-size joint training fits**. Use sufficiently provisioned distributed
 training hardware. CPU parameter offload / ZeRO-3 are not validated by this change.
-The container's RAM limit is 100 GiB; the host's larger physical RAM does not
+The original 4090 container's RAM limit is 100 GiB; the host's larger physical RAM does not
 override this limit.
+
+### Eight-GPU H200 diagnostics
+
+On 2026-10-15, all eight ranks passed NCCL/BF16 checks, both small-model trainers
+saved at step 2 and resumed to step 3 under ZeRO-2, and full-size M0 completed two
+updates per rank. M0 trained 18,424,996,688 parameters; peak allocated/reserved
+CUDA memory across ranks was 78.69/96.59 GiB, with at most 82.0 seconds for the two
+updates (excluding initialization). All sampled Video/Action/proprio gradients
+were finite and nonzero, and the Action head changed on every rank.
+See [the validation record](validation/h200_8gpu_training.json).
+
+The platform evicted the instance for preemption at 15:45:31 UTC. Full-size K0
+was interrupted during optimizer setup; full-size K1 and D0 did not run. These
+methods' full-size memory and training behavior remain unverified. The commands
+below are available for rerunning them when an eight-GPU node is available.
+
+The shared `vpp2` environment also runs on the H200 node (driver 570.124.06,
+PyTorch 2.11.0+cu128). Check all eight devices before training:
+
+```bash
+OMP_NUM_THREADS=2 python -m torch.distributed.run --standalone --nproc_per_node=8 \
+  checks/multigpu_preflight.py --output runs/new_h200_preflight.json
+```
+
+This verifies NCCL sum/gradient collectives and finite, nonzero BF16 gradients
+on every rank. The actual trainer can separately exercise ZeRO-2 state recovery
+using a small synthetic model, for either benchmark:
+
+```bash
+export OMP_NUM_THREADS=2
+for benchmark in robodojo libero; do
+  output="runs/new_h200_tiny_${benchmark}"
+  python -m accelerate.commands.launch --config_file configs/robodojo/accelerate_zero2.yaml \
+    checks/trainer_meanflow.py --benchmark "$benchmark" --output "$output"
+  python -m accelerate.commands.launch --config_file configs/robodojo/accelerate_zero2.yaml \
+    checks/trainer_meanflow.py --benchmark "$benchmark" --output "$output" \
+    --resume "$output/checkpoints/state/step_000002" --steps 3
+done
+```
+
+For full-size RoboDojo weights, `checks/fullsize_meanflow.py` uses the actual VAE,
+CLIP, objective, joint trainer and optimizer with synthetic RGB/action/text
+inputs. Both experts retain all 40 layers and their original widths. The native
+65-step window is subsampled to 17 RGB frames, including the nine-frame history
+prefix, as in the training dataset. This diagnostic uses microbatch 1,
+accumulation 1, global batch 8, and forces non-diagonal intervals to exercise JVP.
+It checks representative Video/Action/proprio gradients, finite losses and an actual Action
+weight update. It does **not** validate real dataset loading, convergence, the
+reference global batch 288, or full-size checkpoint recovery. Large checkpoint
+writes are disabled; state recovery is covered separately by the small model.
+
+```bash
+PYTORCH_ALLOC_CONF=expandable_segments:True \
+python -m accelerate.commands.launch --config_file configs/robodojo/accelerate_zero2.yaml \
+  checks/fullsize_meanflow.py --method mf --steps 2 --output runs/new_h200_full_mf
+# Other methods: distill, kmf_learned, kmf_midpoint. Use a fresh output each time.
+```
+
+The optional RoboDojo ZeRO-2 launcher reuses the existing shared ZeRO-2 JSON;
+the original ZeRO-1 default is unchanged. Select it for real-data runs with
+`VPP2_ACCELERATE_CONFIG=configs/robodojo/accelerate_zero2.yaml`, preserving the
+reference global batch via `gradient_accumulation_steps=36` on eight GPUs.
 
 ## Simulator environment
 
