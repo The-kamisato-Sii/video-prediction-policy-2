@@ -163,6 +163,14 @@ def server(args):
         + os.environ.get("PYTHONPATH", ""),
         VPP2_TORCH_LOAD_MMAP="1",
     )
+    # Upstream imports the websocket implementation only after loading all model
+    # weights. Check transport dependencies first to avoid a costly late failure.
+    subprocess.run(
+        [sys.executable, "-c", "from client_server.ws.model_server import PolicyServer"],
+        cwd=root,
+        env=env,
+        check=True,
+    )
     subprocess.run(cmd, cwd=root, env=env, check=True)
 
 

@@ -47,6 +47,12 @@ The pinned checkouts are RoboDojo `08b7ee4`, IsaacLab
 `d17b54ce32cba095c0b000c4c58777075d11de0e`, and XPolicyLab
 `bb9a0b5f5136a74503b679af830bfd0a3a837d5c`.
 
+On this Ubuntu container, headless rendering also needs the system packages
+`libvulkan1 ffmpeg libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 libxt6 libglu1-mesa`. Install these
+with the system package manager before starting Isaac Sim. NVIDIA's Vulkan ICD
+must be available in addition to CUDA; a successful PyTorch CUDA check alone
+does not verify rendering.
+
 ```bash
 conda activate robodojo
 ROBODOJO_ROOT="$(cd ../RoboDojo && pwd)" PYTHON_BIN="$CONDA_PREFIX/bin/python" \
@@ -231,6 +237,10 @@ The recorded CUDA 12.8 FM-10 run produced finite `32×16` actions, with identica
 outputs across three repeated seeded requests: p50 2.316 s, p95 2.385 s, peak
 38.41 GiB GPU memory. Its cold model load took 397 s on this filesystem.
 See [full-policy report](validation/robodojo_policy_smoke_cu128.json).
+The same FM bundle with one Euler step (B1) also produced finite, repeatable
+`32×16` actions: p50 1.139 s, p95 1.173 s, peak 38.41 GiB. This is an execution
+and latency comparison, not evidence of retained task success or a MeanFlow
+checkpoint. See [B1 report](validation/robodojo_policy_b1_smoke_cu128.json).
 
 This tests the real policy's normalization/history/encoder/MoT/output path and
 counts actual calls to every action block. It saves action chunks, synchronized
@@ -267,3 +277,28 @@ retaining `action_step=30000`. For B2, use `fm_continuation=true`,
 (or a separate one-step comparison with `action_nfe=1`). The checkpoint must carry
 B2 provenance and its frozen Video SHA-256 must match; merely changing a step
 label cannot bypass these checks.
+
+
+Once the simulator environment is installed, a single native episode can be run
+against the policy server above (the 48 GiB host uses GPU 0 for both processes):
+
+```bash
+bash scripts/robodojo/smoke_client.sh --robodojo-root ../RoboDojo \
+  --sim-python ../miniconda/envs/robodojo/bin/python --port 23000 --task stack_bowls
+```
+
+This preserves the task's native reset, control and scoring logic, but runs only
+one episode. Its result is a deployment probe and must not be reported as the
+full benchmark's SR. Use the original 2100-episode evaluation/audit for that.
+
+To isolate native websocket/adapter integration from simulator startup, run this
+against the same running server, using the policy environment:
+
+```bash
+python checks/robodojo_websocket.py --robodojo-root ../RoboDojo \
+  --url ws://127.0.0.1:23000 --output runs/new_websocket_probe
+```
+
+This explicitly uses synthetic native observations and checks the 24 executable
+EE16 actions returned after the adapter trims the policy's 32-step chunk. It is
+not a physics rollout or success-rate measurement.

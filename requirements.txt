@@ -22,7 +22,9 @@ ftfy>=6.3
 regex>=2024.11
 opencv-python>=4.10
 msgpack>=1.0
-websockets>=12
+msgpack-numpy>=0.4.8
+pydantic>=2.5
+websockets>=14
 datasets==3.6.0
 jsonlines==4.0.0
 PyYAML>=6
