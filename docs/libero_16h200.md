@@ -42,15 +42,43 @@ export RUN_NAME=libero_action_16h200_b16
 
 ## 启智分布式训练任务
 
-选择 PyTorch 分布式任务、2 个实例、每实例 8 张 H200。将上面的环境准备命令和下面这行
-放进**每个实例**的启动命令：
+选择 PyTorch 分布式任务、2 个实例、每实例 8 张 H200。按平台 `PET_*` 变量格式，
+将下面完整命令放进**每个实例**的启动命令：
 
 ```bash
-bash scripts/libero/train_16h200.sh
+bash -c '
+set -euo pipefail
+
+cd /inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2
+source /inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/miniconda/etc/profile.d/conda.sh
+conda activate vpp2
+
+export PYTHON_BIN="$CONDA_PREFIX/bin/python"
+export CUDA_HOME=/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/tools/cuda-12.8
+export PATH="$CUDA_HOME/bin:$PATH"
+export OMP_NUM_THREADS=2
+
+export NNODES="${PET_NNODES:?}"
+export NPROC_PER_NODE="${PET_NPROC_PER_NODE:?}"
+export NODE_RANK="${PET_NODE_RANK:?}"
+export MASTER_ADDR="${PET_MASTER_ADDR:-${MASTER_ADDR:?}}"
+export MASTER_PORT="${PET_MASTER_PORT:-${MASTER_PORT:-29500}}"
+
+export RUN_NAME="libero-action-16gpu-b16-${TRAIN_JOB_ID:?}-round${RUNNING_ROUND:-0}"
+export WANDB_PROJECT=VPP2-LIBERO
+export WANDB_NAME="$RUN_NAME"
+export WANDB_MODE=offline
+
+bash scripts/libero/train_16h200.sh \
+  max_steps=30000 learning_rate=1e-4 warmup_steps=500 \
+  save_every=5000 log_every=10 2>&1
+'
 ```
 
-脚本使用平台提供的 `MASTER_ADDR` / `MASTER_PORT`，并优先使用 `NODE_RANK`；
-未提供 `NODE_RANK` 时，读取 launcher 启动前的平台 `RANK`（必须为节点编号 0 或 1）。
+脚本固定单卡 batch=16、累积=1、workers=16，并检查拓扑为 2×8。
+`RUNNING_ROUND` 用于区分输出目录；此命令每轮从 Action 初始化开始，不自动查找断点续训。
+脚本使用 `MASTER_ADDR` / `MASTER_PORT`，并优先使用 `NODE_RANK`；
+未提供时也支持直接读取 `PET_*`，节点编号还可回退至 launcher 启动前的平台 `RANK`（必须为 0 或 1）。
 若平台未注入这些变量，脚本会明确报错，此时按下面的手动方式指定。
 不要把 GPU 全局进程 rank 或 world size 当作节点编号。底层 Accelerate 会为 16 个 GPU 进程设置正确的 rank/world size。
 
@@ -102,6 +130,10 @@ runs/libero/libero_action_16h200_b16_logs/
 
 W&B 记录完整解析后的配置、loss / loss_action / loss_video、学习率、梯度范数、
 吞吐和诊断指标。没有开启逐层梯度或参数直方图采集。
+
+终端每 10 步显示 `step=当前步/30000`、loss、梯度范数、学习率、step/s 和 ETA；
+目前是逐条打印的进度日志，没有原地刷新的 tqdm 图形进度条。
+上面的启智命令使用带任务 ID 的 `RUN_NAME`，对应日志和输出路径也会使用这个名字。
 
 ```bash
 tail -f runs/libero/libero_action_16h200_b16_logs/node0.log

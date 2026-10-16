@@ -10,7 +10,8 @@ import pytest
 
 
 @pytest.mark.parametrize("rank", ["0", "1"])
-def test_two_node_recipe_preserves_official_training(tmp_path, rank):
+@pytest.mark.parametrize("platform_prefix", ["", "PET_"])
+def test_two_node_recipe_preserves_official_training(tmp_path, rank, platform_prefix):
     capture = tmp_path / "capture-python"
     capture.write_text(
         f"#!{sys.executable}\n"
@@ -19,9 +20,16 @@ def test_two_node_recipe_preserves_official_training(tmp_path, rank):
         "print(json.dumps({'args': sys.argv[1:], 'env': {k: os.environ.get(k) for k in keys}}))\n"
     )
     capture.chmod(0o755)
-    env = dict(os.environ, PYTHON_BIN=str(capture), RANK=rank,
-               MASTER_ADDR="10.0.0.1", MASTER_PORT="29616")
-    env.pop("NODE_RANK", None)
+    env = dict(os.environ, PYTHON_BIN=str(capture), WANDB_PROJECT="test-libero",
+               WANDB_NAME="test-action16")
+    for key in ("NODE_RANK", "RANK", "MASTER_ADDR", "MASTER_PORT", "NNODES", "NPROC_PER_NODE",
+                "PET_NODE_RANK", "PET_MASTER_ADDR", "PET_MASTER_PORT", "PET_NNODES", "PET_NPROC_PER_NODE"):
+        env.pop(key, None)
+    env["PET_NODE_RANK" if platform_prefix else "RANK"] = rank
+    env[platform_prefix + "MASTER_ADDR"] = "10.0.0.1"
+    env[platform_prefix + "MASTER_PORT"] = "29616"
+    env[platform_prefix + "NNODES"] = "2"
+    env[platform_prefix + "NPROC_PER_NODE"] = "8"
     result = subprocess.run(
         ["bash", "scripts/libero/train_16h200.sh", "--dry-run"],
         env=env, text=True, capture_output=True, check=True,
@@ -41,6 +49,7 @@ def test_two_node_recipe_preserves_official_training(tmp_path, rank):
     assert cfg.batch_size == 16 and cfg.gradient_accumulation_steps == 1
     assert cfg.num_workers == 16 and cfg.save_every == 5000
     assert cfg.wandb.enabled and cfg.wandb.mode == "offline"
+    assert cfg.wandb.project == "test-libero" and cfg.wandb.name == "test-action16"
     # Everything outside local paths, batch, output safety and tracking is identical.
     for key in ("output_dir", "overwrite", "batch_size", "wandb"):
         cfg[key] = official[key]
