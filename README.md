@@ -40,6 +40,12 @@ This codebase includes:
 入口为 `bash scripts/robodojo/train_8h200.sh`；保持原配方 100k 次更新、
 全局 batch 288（每卡 3 × 累积 12），从 history-10k 初始化，使用 ZeRO-2。
 
+**冻结 Video、只训练 Action2B 的容量实验（2026-10-16）：** 8×H200、BF16、
+ZeRO-2、累积 1 时，每卡 batch **28** 完成 3 次更新，**29** 前向 OOM；
+batch 24 的显存峰值约 122.6 GiB，batch 28 约 136.4 GiB。
+这与官方 RoboDojo 联合训练配方不同。测试命令、checkpoint 来源和 ZeRO-2
+数值检查见 **[冻结 Video 容量实验](docs/robodojo_frozen_video.md)**。
+
 已新增可选的 D0 轨迹蒸馏、M0 MeanFlow、K0 可学习 K-MF、K1 中点 K-MF，
 保留原 FM 默认路径。完整安装、数据/权重路径、各方法训练、恢复、导出和
 RoboDojo / LIBERO 测试命令见 **[MeanFlow 使用与验证](docs/meanflow.md)**。

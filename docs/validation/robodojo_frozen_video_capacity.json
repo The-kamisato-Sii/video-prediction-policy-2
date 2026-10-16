@@ -1,0 +1,245 @@
+{
+  "date_utc": "2026-10-16",
+  "scope": {
+    "scope": "Synthetic RGB capacity; frozen Video, train Action2B plus proprio projection",
+    "video_checkpoint": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/weights/robodojo_baseline/checkpoints/initialization/robodojo_his10k.pt",
+    "action_checkpoint": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/weights/robodojo_baseline/init/action2b_from_his10k.pt",
+    "source_video_sha256": "2d2490bd60272ec37423dabafaed4a889b2b2bf3760ac96d63d551d723ad2852",
+    "video_initial_tensor_sha256": "71eccf606fadb4be5398833eea5f06bddbcf2604ecb7245a4f460ece3ada7f8a",
+    "trainable_parameters": 2028805136,
+    "frozen_video_parameters": 16394878784,
+    "world_size": 8,
+    "accumulation": 1,
+    "zero_stage": 2,
+    "torch_version": "2.11.0+cu128",
+    "deepspeed_version": "0.18.5",
+    "gpu": "NVIDIA H200",
+    "total_memory_gib": 139.81158447265625,
+    "video_shape": [
+      3,
+      17,
+      240,
+      416
+    ],
+    "condition_video_shape": [
+      3,
+      9,
+      240,
+      416
+    ],
+    "action_shape": [
+      32,
+      16
+    ],
+    "action_visible_latent_frames": 5,
+    "first_frame_fast_path": false,
+    "learning_rate": 0.0001,
+    "weight_decay": 0.01,
+    "note": "Batch sizes reuse optimizer state; each batch measures complete updates, excludes loading and checksums."
+  },
+  "capacity": {
+    "max_passed_batch": 28,
+    "min_forward_oom_batch": 29,
+    "accumulation": 1,
+    "world_size": 8,
+    "video_full_checksum_unchanged_rank0": true
+  },
+  "batches": [
+    {
+      "batch_per_gpu": 3,
+      "accumulation": 1,
+      "global_batch": 24,
+      "optimizer_updates": 3,
+      "steady_seconds_rank0": 5.0685462560504675,
+      "peak_allocated_gib_max_rank": 49.78250503540039,
+      "peak_reserved_gib_max_rank": 49.80859375,
+      "ranks_verified": 8,
+      "action_updated": true,
+      "action_replicas_identical": true,
+      "video_gradients_absent": true
+    },
+    {
+      "batch_per_gpu": 12,
+      "accumulation": 1,
+      "global_batch": 96,
+      "optimizer_updates": 3,
+      "steady_seconds_rank0": 7.372381533496082,
+      "peak_allocated_gib_max_rank": 80.94362688064575,
+      "peak_reserved_gib_max_rank": 81.01953125,
+      "ranks_verified": 8,
+      "action_updated": true,
+      "action_replicas_identical": true,
+      "video_gradients_absent": true
+    },
+    {
+      "batch_per_gpu": 24,
+      "accumulation": 1,
+      "global_batch": 192,
+      "optimizer_updates": 3,
+      "steady_seconds_rank0": 10.838615692220628,
+      "peak_allocated_gib_max_rank": 122.49184131622314,
+      "peak_reserved_gib_max_rank": 122.56640625,
+      "ranks_verified": 8,
+      "action_updated": true,
+      "action_replicas_identical": true,
+      "video_gradients_absent": true
+    },
+    {
+      "batch_per_gpu": 27,
+      "accumulation": 1,
+      "global_batch": 216,
+      "optimizer_updates": 3,
+      "steady_seconds_rank0": 11.528476971201599,
+      "peak_allocated_gib_max_rank": 132.87895154953003,
+      "peak_reserved_gib_max_rank": 132.9609375,
+      "ranks_verified": 8,
+      "action_updated": true,
+      "action_replicas_identical": true,
+      "video_gradients_absent": true
+    },
+    {
+      "batch_per_gpu": 28,
+      "accumulation": 1,
+      "global_batch": 224,
+      "optimizer_updates": 3,
+      "steady_seconds_rank0": 11.765752989798784,
+      "peak_allocated_gib_max_rank": 136.34125804901123,
+      "peak_reserved_gib_max_rank": 136.419921875,
+      "ranks_verified": 8,
+      "action_updated": true,
+      "action_replicas_identical": true,
+      "video_gradients_absent": true
+    }
+  ],
+  "gradient_reference": [
+    {
+      "pass_check": true,
+      "world_size": 8,
+      "deepspeed": "0.18.5",
+      "torch": "2.11.0+cu128",
+      "precision": "bf16",
+      "accumulation": 1,
+      "gradients": {
+        "shared.weight": {
+          "relative_l2": 0.004041787702590227,
+          "max_absolute": 0.000484466552734375
+        },
+        "shared.bias": {
+          "relative_l2": 0.003329087281599641,
+          "max_absolute": 0.00030517578125
+        },
+        "output.weight": {
+          "relative_l2": 0.0038056056946516037,
+          "max_absolute": 0.000823974609375
+        },
+        "output.bias": {
+          "relative_l2": 0.005155015736818314,
+          "max_absolute": 0.00079345703125
+        }
+      },
+      "updated_replicas_identical": true
+    },
+    {
+      "pass_check": true,
+      "world_size": 8,
+      "deepspeed": "0.18.5",
+      "torch": "2.11.0+cu128",
+      "precision": "bf16",
+      "accumulation": 3,
+      "gradients": {
+        "shared.weight": {
+          "relative_l2": 0.005225060041993856,
+          "max_absolute": 0.000171661376953125
+        },
+        "shared.bias": {
+          "relative_l2": 0.004296805243939161,
+          "max_absolute": 0.00026416778564453125
+        },
+        "output.weight": {
+          "relative_l2": 0.004071524832397699,
+          "max_absolute": 0.0003056526184082031
+        },
+        "output.bias": {
+          "relative_l2": 0.003539272118359804,
+          "max_absolute": 0.0004425048828125
+        }
+      },
+      "updated_replicas_identical": true
+    },
+    {
+      "pass_check": true,
+      "world_size": 8,
+      "deepspeed": "0.18.5",
+      "torch": "2.11.0+cu128",
+      "precision": "fp32",
+      "accumulation": 1,
+      "gradients": {
+        "shared.weight": {
+          "relative_l2": 6.082386505568138e-08,
+          "max_absolute": 3.725290298461914e-09
+        },
+        "shared.bias": {
+          "relative_l2": 4.57836968337233e-08,
+          "max_absolute": 3.725290298461914e-09
+        },
+        "output.weight": {
+          "relative_l2": 4.01857107590331e-08,
+          "max_absolute": 3.725290298461914e-09
+        },
+        "output.bias": {
+          "relative_l2": 3.106927692897443e-08,
+          "max_absolute": 7.450580596923828e-09
+        }
+      },
+      "updated_replicas_identical": true
+    },
+    {
+      "pass_check": true,
+      "world_size": 8,
+      "deepspeed": "0.18.5",
+      "torch": "2.11.0+cu128",
+      "precision": "fp32",
+      "accumulation": 3,
+      "gradients": {
+        "shared.weight": {
+          "relative_l2": 9.21458109814921e-08,
+          "max_absolute": 3.725290298461914e-09
+        },
+        "shared.bias": {
+          "relative_l2": 8.217894986728425e-08,
+          "max_absolute": 3.725290298461914e-09
+        },
+        "output.weight": {
+          "relative_l2": 7.732671747362474e-08,
+          "max_absolute": 7.450580596923828e-09
+        },
+        "output.bias": {
+          "relative_l2": 9.177008308824952e-08,
+          "max_absolute": 1.4901161193847656e-08
+        }
+      },
+      "updated_replicas_identical": true
+    }
+  ],
+  "forward_oom_batches": [
+    29,
+    30,
+    36,
+    48
+  ],
+  "rejected_runtime_candidate": {
+    "deepspeed": "0.18.2",
+    "installed_in_isolated_directory_only": true,
+    "fp32_accumulation_1": "PASS",
+    "fp32_accumulation_3": "FAIL",
+    "shared_weight_relative_l2_error": 0.7451362013816833,
+    "conclusion": "Not compatible with the tested step-at-accumulation-boundary calling pattern; not adopted. Full-model timing was not launched."
+  },
+  "limitations": [
+    "Synthetic input, not real-data convergence",
+    "Each successful batch ran 3 optimizer updates; 2 steady-state timing samples",
+    "Capacity applies to this eight-rank ZeRO-2 setup and unchanged input shapes",
+    "No dataset decoding, evaluation or checkpoint costs in timing",
+    "Formal baseline training remains held"
+  ]
+}

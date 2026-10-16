@@ -87,5 +87,6 @@
     }
   ],
   "configuration_decision": "Retain existing ZeRO-2 configuration; contiguous gradients plus overlapping communication did not improve steady-state throughput.",
-  "nccl_all_reduce_400MB_algorithm_gbps_min": 259.3236025762773
+  "nccl_all_reduce_400MB_algorithm_gbps_min": 259.3236025762773,
+  "interpretation_update_2026_10_16": "Historical DeepSpeed 0.18.5 bottleneck measurements. Clean-upstream trace shows 5,377,761 view_as calls from per-parameter backward graph scans. The 404-day extrapolation is not a validated baseline schedule. See robodojo_frozen_video_capacity.json for separate frozen-Video results."
 }
