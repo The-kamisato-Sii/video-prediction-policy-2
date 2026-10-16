@@ -80,7 +80,7 @@ def setup_logging(
         # Configure Formatter
         default_formatter_kwargs = {
             "fmt": "| >> %(message)s",
-            "datefmt": "%m/%d [%H:%M:%S]",
+            "datefmt": "[%H:%M:%S]",
         }
         if formatter_kwargs:
             default_formatter_kwargs.update(formatter_kwargs)
@@ -102,7 +102,7 @@ def setup_logging(
             file_handler.setFormatter(
                 logging.Formatter(
                     fmt="[%(asctime)s][%(name)s][%(levelname)s] - %(message)s",
-                    datefmt="%Y-%m-%d %H:%M:%S",
+                    datefmt="%H:%M:%S",
                 )
             )
             root_logger.addHandler(file_handler)
