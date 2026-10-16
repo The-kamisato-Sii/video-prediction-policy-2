@@ -16,7 +16,7 @@ def test_two_node_recipe_preserves_official_training(tmp_path, rank, platform_pr
     capture.write_text(
         f"#!{sys.executable}\n"
         "import json, os, sys\n"
-        "keys = ('NODE_RANK', 'WORLD_SIZE', 'WANDB_MODE', 'MASTER_ADDR', 'MASTER_PORT')\n"
+        "keys = ('NODE_RANK', 'WORLD_SIZE', 'WANDB_MODE', 'MASTER_ADDR', 'MASTER_PORT', 'VPP2_ACCELERATE_CONFIG')\n"
         "print(json.dumps({'args': sys.argv[1:], 'env': {k: os.environ.get(k) for k in keys}}))\n"
     )
     capture.chmod(0o755)
@@ -45,6 +45,12 @@ def test_two_node_recipe_preserves_official_training(tmp_path, rank, platform_pr
     assert launched_env["WANDB_MODE"] == "offline"
     assert launched_env["MASTER_ADDR"] == "10.0.0.1"
     assert launched_env["MASTER_PORT"] == "29616"
+    accelerate = OmegaConf.load(launched_env["VPP2_ACCELERATE_CONFIG"])
+    ds = json.loads(Path(accelerate.deepspeed_config.deepspeed_config_file).read_text())
+    assert ds["zero_optimization"]["stage"] == 1
+    official_ds = json.loads(Path("configs/libero/deepspeed_zero2.json").read_text())
+    ds["zero_optimization"]["stage"] = 2
+    assert ds == official_ds
     assert cfg.batch_size * cfg.gradient_accumulation_steps * 16 == 256
     assert cfg.batch_size == 16 and cfg.gradient_accumulation_steps == 1
     assert cfg.num_workers == 16 and cfg.save_every == 5000

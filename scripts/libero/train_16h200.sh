@@ -26,9 +26,10 @@ esac
 export MASTER_PORT="${MASTER_PORT:-${PET_MASTER_PORT:-29616}}"
 export BATCH_SIZE=16 GRAD_ACC=1 NUM_WORKERS=16
 export VPP2_TRAIN_MODULE=vpp2.libero.cli
+export VPP2_ACCELERATE_CONFIG=configs/libero/accelerate_zero1.yaml
 export WANDB_MODE=offline
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONUNBUFFERED=1
-export RUN_NAME="${RUN_NAME:-libero_action_16h200_b16}"
+export RUN_NAME="${RUN_NAME:-libero_action_16h200_b16_zero1}"
 [[ "$RUN_NAME" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]] || {
   echo 'RUN_NAME must be a simple directory name (letters, digits, dot, underscore, hyphen).' >&2
   exit 2

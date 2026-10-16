@@ -9,7 +9,7 @@ export OMP_NUM_THREADS="${OMP_NUM_THREADS:-2}"
 export PYTORCH_ALLOC_CONF="${PYTORCH_ALLOC_CONF:-expandable_segments:True}"
 export MASTER_PORT="${MASTER_PORT:-29612}"
 export VPP2_TRAIN_MODULE="${VPP2_TRAIN_MODULE:-vpp2.libero.cli}"
-export VPP2_ACCELERATE_CONFIG=configs/libero/accelerate_zero2.yaml
+export VPP2_ACCELERATE_CONFIG="${VPP2_ACCELERATE_CONFIG:-configs/libero/accelerate_zero2.yaml}"
 flags=()
 overrides=()
 for argument in "$@"; do

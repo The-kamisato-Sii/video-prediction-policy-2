@@ -1,0 +1,30 @@
+{
+  "pass_check": true,
+  "world_size": 1,
+  "deepspeed": "0.18.5",
+  "torch": "2.11.0+cu128",
+  "precision": "bf16",
+  "zero_stage": 1,
+  "gradient_hook_count": 0,
+  "gradient_accumulation_dtype": "torch.bfloat16",
+  "accumulation": 1,
+  "gradients": {
+    "shared.weight": {
+      "relative_l2": 0.0,
+      "max_absolute": 0.0
+    },
+    "shared.bias": {
+      "relative_l2": 0.0,
+      "max_absolute": 0.0
+    },
+    "output.weight": {
+      "relative_l2": 0.0,
+      "max_absolute": 0.0
+    },
+    "output.bias": {
+      "relative_l2": 0.0,
+      "max_absolute": 0.0
+    }
+  },
+  "updated_replicas_identical": true
+}
