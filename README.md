@@ -42,9 +42,20 @@ This codebase includes:
 
 **冻结 Video、只训练 Action2B 的容量实验（2026-10-16）：** 8×H200、BF16、
 ZeRO-2、累积 1 时，每卡 batch **28** 完成 3 次更新，**29** 前向 OOM；
-batch 24 的显存峰值约 122.6 GiB，batch 28 约 136.4 GiB。
+batch 24 的显存峰值约 122.6 GiB，batch 28 约 136.4 GiB。这些是 MoT 训练态修复前、
+激活 checkpoint 未实际生效时的历史结果，不能作为当前代码的容量上限。
 这与官方 RoboDojo 联合训练配方不同。测试命令、checkpoint 来源和 ZeRO-2
 数值检查见 **[冻结 Video 容量实验](docs/robodojo_frozen_video.md)**。
+
+**LIBERO 8×H200（2026-10-16）：** 官方 Action 阶段冻结 Video，训练 Action1B +
+proprio，global batch 256、LR 1e-4、warmup 500、30k 步。
+已下载并校验 LIBERO Video-10k 和四套 MuJoCo 3.3.2 公开数据，生成 40 条文本缓存及新 Action 初始化。
+修复了 MoT 激活 checkpoint 未生效和多卡启动的目录检查竞态。每卡 32 已通过 20 步 +
+恢复 2 步，峰值 reserved **137.18 GiB**，余量不足；默认改为每卡 **16 × 累积 2**，
+global 256，8 步验证峰值 reserved **87.23 GiB**。Video 完整 hash 前后不变，各卡训练参数一致。
+两种配置计时均值分别为 11.49 / 15.69 秒每更新；这是短跑，正式 30k 任务尚未启动。
+官方/本机配置对照、数据来源、训练命令与短跑/恢复检查见
+**[LIBERO 本机训练与实测](docs/libero_8h200.md)**。
 
 已新增可选的 D0 轨迹蒸馏、M0 MeanFlow、K0 可学习 K-MF、K1 中点 K-MF，
 保留原 FM 默认路径。完整安装、数据/权重路径、各方法训练、恢复、导出和

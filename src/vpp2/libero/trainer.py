@@ -35,6 +35,10 @@ class LiberoTrainer(JointTrainer):
         if self.train_mode == "video_only":
             model.dit.train().requires_grad_(True)
         else:
+            # MoT gates activation checkpointing on its own training flag.
+            # Training just the Action child leaves this container in eval mode.
+            model.mot.train()
+            model.video_expert.eval()
             model.action_expert.train().requires_grad_(True)
             model.proprio_encoder.train().requires_grad_(True)
             if any(p.requires_grad for p in model.video_expert.parameters()):

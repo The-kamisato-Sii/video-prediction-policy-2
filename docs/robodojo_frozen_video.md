@@ -4,6 +4,12 @@ This experiment freezes the complete Video expert and trains Action2B plus its
 proprio projection. It is **not** the released RoboDojo joint-training baseline.
 The released baseline remains in `configs/robodojo/train_100k.yaml`.
 
+**Historical measurement:** these capacity numbers were collected before the
+LIBERO MoT training-mode fix described in [the LIBERO report](libero_8h200.md).
+The configured Action activation checkpointing was inactive in that run. The
+same probe now inherits the fix; batch 28 is not an established maximum for the
+current code. No updated RoboDojo capacity sweep has been run.
+
 The probe reuses the upstream `LiberoActionModel` / `LiberoTrainer` implementation
 of frozen-video conditioning, with the **RoboDojo** model dimensions and inputs:
 40 Video layers, 40 Action layers, 17 RGB frames at 240 × 416, 9 conditioning

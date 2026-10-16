@@ -118,7 +118,13 @@ def train(args):
         and not Path(cfg.model.action_dit_pretrained_path).is_file()
     ):
         raise FileNotFoundError(cfg.model.action_dit_pretrained_path)
-    if (Path(cfg.output_dir) / "config.yaml").exists() and not cfg.resume:
+    # Only rank 0 writes config.yaml. A faster rank 0 may already have written
+    # this launch's config while another rank is still validating its inputs.
+    if (
+        int(os.environ.get("RANK", "0")) == 0
+        and (Path(cfg.output_dir) / "config.yaml").exists()
+        and not cfg.resume
+    ):
         raise FileExistsError(
             "Output contains an existing run; set resume=... or choose a fresh output_dir"
         )
