@@ -287,6 +287,7 @@ class JointTrainer:
             group=None if self.cfg.wandb.group in (None, "null", "") else str(self.cfg.wandb.group),
             mode=self.cfg.wandb.mode,
             dir=self.output_dir,
+            config=OmegaConf.to_container(self.cfg, resolve=True),
         )
         logger.info(
             "Initialized wandb run: workspace=%s project=%s name=%s",

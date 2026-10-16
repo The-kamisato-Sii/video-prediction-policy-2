@@ -53,9 +53,17 @@ proprio，global batch 256、LR 1e-4、warmup 500、30k 步。
 修复了 MoT 激活 checkpoint 未生效和多卡启动的目录检查竞态。每卡 32 已通过 20 步 +
 恢复 2 步，峰值 reserved **137.18 GiB**，余量不足；默认改为每卡 **16 × 累积 2**，
 global 256，8 步验证峰值 reserved **87.23 GiB**。Video 完整 hash 前后不变，各卡训练参数一致。
-两种配置计时均值分别为 11.49 / 15.69 秒每更新；这是短跑，正式 30k 任务尚未启动。
+两种配置的短跑计时均值分别为 11.49 / 15.69 秒每更新。
+之后已按用户选择启动单卡 32 / 累积 1 的 8 卡正式 30k 任务，
+输出为 `runs/libero/action_b32_20261016_0719`。
 官方/本机配置对照、数据来源、训练命令与短跑/恢复检查见
 **[LIBERO 本机训练与实测](docs/libero_8h200.md)**。
+
+**LIBERO 16×H200 启动准备：** 2 个节点，每节点 8 卡，每卡 batch 16、累积 1，
+global batch 256；其余训练配置沿用官方 LIBERO YAML，每 5k 步保存，启用离线 W&B。
+入口为 `bash scripts/libero/train_16h200.sh`，每个节点各执行一次。
+完整 `cd` / `source` / `conda activate`、启智变量及手动主/工作节点命令见
+**[LIBERO 16 卡与离线 W&B](docs/libero_16h200.md)**。16 卡跨节点训练尚未实测。
 
 已新增可选的 D0 轨迹蒸馏、M0 MeanFlow、K0 可学习 K-MF、K1 中点 K-MF，
 保留原 FM 默认路径。完整安装、数据/权重路径、各方法训练、恢复、导出和

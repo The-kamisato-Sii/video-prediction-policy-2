@@ -120,7 +120,9 @@ BATCH_SIZE=32 GRAD_ACC=1 bash scripts/libero/train_8h200.sh \
 
 本机正式参数的完整快照为 [`docs/validation/libero_8h200_formal.yaml`](validation/libero_8h200_formal.yaml)，
 可直接与官方 `configs/libero/train_action.yaml` 对比；其中 max_steps=30000、warmup_steps=500。
-这是参数预览，尚未启动正式训练。
+这是当时单卡 16 / 累积 2 的参数预览。之后按用户选择启动了单卡 32 / 累积 1 的正式任务，
+实际配置在 `runs/libero/action_b32_20261016_0719/config.yaml`。
+两节点、单卡 16 的启动方法见 [16 卡与离线 W&B](libero_16h200.md)。
 
 单卡 16、累积 1 在 8 卡上是 global batch 128，仅作明确标注的诊断；
 若以后扩到 16 卡，16×16×1 才是 256。本次不申请 16 卡。
@@ -201,7 +203,8 @@ Video 完整 hash 不变、Action/proprio 有限非零梯度和更新均通过�
 跳过前两步后，6 次更新的最慢 rank 均值 **15.69 秒**、中位数 **15.06 秒**；
 短跑外推 30k 训练步约 **130.78 小时 / 5.45 天**，不包括周期评测/保存及长期波动。
 因此本机默认使用 **batch 16 / 累积 2**。未来若采用 16 卡，改为每卡 16 / 累积 1 即保持
-global 256；跨节点吞吐仍须另测。本次没有申请 16 卡，也没有启动正式 30k 任务。
+global 256；跨节点吞吐仍须另测。这些调试结束时没有申请 16 卡或启动正式任务；
+后来启动的 8 卡正式任务使用单卡 32，路径见上文。
 
 全部结构化证据见 [`libero_8h200.json`](validation/libero_8h200.json)。
 20 项相关 CPU 回归测试通过；两种 batch 的 launcher dry-run 均显示 global 256 / 30k steps。

@@ -1,0 +1,2 @@
+# Optional tracking dependency, validated with the shared vpp2 environment.
+wandb==0.30.0
