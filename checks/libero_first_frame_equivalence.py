@@ -17,6 +17,12 @@ def main():
     args = parser.parse_args()
     torch.set_num_threads(2)
     cfg = OmegaConf.load('configs/libero/train_action.yaml')
+    # The component loader resolves relative checkpoints against model_id.
+    # Match train_8h200.sh, which supplies repository-absolute paths.
+    for key in ('model_id', 'dit_checkpoint_path', 'action_dit_pretrained_path'):
+        cfg.model[key] = str(Path(cfg.model[key]).resolve())
+        if not Path(cfg.model[key]).exists():
+            raise FileNotFoundError(cfg.model[key])
     reference = instantiate(cfg.data.train)
     optimized_cfg = OmegaConf.create(OmegaConf.to_container(cfg.data.train, resolve=True))
     optimized_cfg.decode_only_first_video_frame = True
