@@ -176,3 +176,20 @@ bash scripts/libero/train_8h200_zero1.sh
 该入口固定单卡 batch 32、梯度累积 1、全局 batch 256，训练 30000 步、warmup 500、每 5000 步保存；其余训练参数沿用官方 LIBERO 配置。离线 W&B 位于 `runs/libero/$RUN_NAME/wandb`，文本日志位于 `runs/libero/${RUN_NAME}_logs/node0.log`。这是从相同 Action 初始化权重开始的新实验，不加载 16 卡训练的优化器状态。
 
 8 卡 ZeRO1 与 16 卡入口均使用 `exec` 启动训练，并通过进程替换写入日志，训练退出码直接传给平台。更新运行中的 shell 文件必须使用临时文件加原子重命名，避免长时间运行的 bash 在训练结束后读取被原地改写的脚本尾部。已有任务已打开的旧脚本不会因原子替换而改变。
+
+### 首帧解码实验（8 H200、ZeRO1、batch 32）
+
+在同样的环境中执行 `bash scripts/libero/train_8h200_zero1_first_frame.sh`。
+该入口在数据端设置 `decode_only_first_video_frame=true` 和
+`processor.num_image_obs_steps=1`，保留 65 步原始时间跨度、17 帧逻辑视频长度、
+32 步 action 标签和原来的噪声 latent 形状。workers 仍为每 rank 16。
+Action 评估使用 `video_num_frames`，而不是实际解码的单帧长度。
+
+真实数据等价性验证（涵盖四个子集及边界）：
+
+```bash
+PYTHONPATH=src python checks/libero_first_frame_equivalence.py --output /tmp/libero-first-frame.json
+# 在 H200 上追加 --gpu，比较固定 RNG 下完整模型的 loss 和全部可训练参数梯度。
+```
+
+该选项仅用于当前 action-only、首帧 fast path 配置，不应用于需要真实未来图像监督的 Video 训练。

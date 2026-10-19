@@ -186,7 +186,7 @@ class ActionDiagnosticEvaluator:
                 "proprio": proprio[0],
                 "context": context,
                 "context_mask": context_mask,
-                "num_video_frames": int(video.shape[1]),
+                "num_video_frames": int(sample.get("video_num_frames", video.shape[1])),
                 "num_inference_steps": self.num_inference_steps,
                 "seed": self.seed,
                 "tiled": False,

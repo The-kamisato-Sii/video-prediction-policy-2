@@ -1,0 +1,78 @@
+"""Compare real LIBERO data and optionally full-model loss for first-frame decoding."""
+import argparse
+import json
+from pathlib import Path
+import time
+
+import torch
+from hydra.utils import instantiate
+from omegaconf import OmegaConf
+from torch.utils.data import default_collate
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--gpu', action='store_true')
+    parser.add_argument('--output', required=True)
+    args = parser.parse_args()
+    torch.set_num_threads(2)
+    cfg = OmegaConf.load('configs/libero/train_action.yaml')
+    reference = instantiate(cfg.data.train)
+    optimized_cfg = OmegaConf.create(OmegaConf.to_container(cfg.data.train, resolve=True))
+    optimized_cfg.decode_only_first_video_frame = True
+    optimized_cfg.processor.num_image_obs_steps = 1
+    optimized = instantiate(optimized_cfg)
+    rows, pair = [], None
+    # Cover all four suites, including dataset and episode boundary padding.
+    for index in [0, 100, 53228, 53229, 120537, 120538, 173432, 173433, 277712]:
+        t = time.perf_counter()
+        full = reference[index]
+        full_s = time.perf_counter() - t
+        t = time.perf_counter()
+        short = optimized[index]
+        short_s = time.perf_counter() - t
+        assert full.keys() == short.keys()
+        for key in full:
+            expected = full[key]
+            if key == 'video':
+                expected = expected[:, :1]
+            elif key == 'image_is_pad':
+                expected = expected[:1]
+            if isinstance(expected, torch.Tensor):
+                torch.testing.assert_close(short[key], expected, rtol=0, atol=0)
+            else:
+                assert short[key] == expected, key
+        assert short['video_num_frames'] == 17
+        rows.append(dict(index=index, reference_seconds=full_s, first_frame_seconds=short_s))
+        if index == 100:
+            pair = (full, short)
+    report = dict(status='PASS', real_data_exact_equal=True, samples=rows)
+    if args.gpu:
+        from vpp2.libero.trainer import LiberoTrainer
+        model = instantiate(cfg.model, model_dtype=torch.bfloat16, device='cuda')
+        trainer = LiberoTrainer.__new__(LiberoTrainer)
+        trainer.train_mode = 'action_only'
+        trainer._apply_train_mode(model)
+        results = []
+        for sample in pair:
+            torch.manual_seed(123)
+            torch.cuda.manual_seed_all(123)
+            model.zero_grad(set_to_none=True)
+            with torch.autocast('cuda', dtype=torch.bfloat16):
+                loss, _ = model(default_collate([sample]))
+            loss.backward()
+            results.append((loss.detach().float().cpu(), {
+                name: parameter.grad.detach().cpu().clone()
+                for name, parameter in model.named_parameters() if parameter.requires_grad
+            }))
+        torch.testing.assert_close(results[0][0], results[1][0], rtol=0, atol=0)
+        for name in results[0][1]:
+            torch.testing.assert_close(results[0][1][name], results[1][1][name], rtol=0, atol=0)
+        report.update(full_model_loss=float(results[0][0]), full_model_loss_exact_equal=True,
+                      all_trainable_gradients_exact_equal=True)
+    Path(args.output).write_text(json.dumps(report, indent=2) + '\n')
+    print(json.dumps(report, indent=2))
+
+
+if __name__ == '__main__':
+    main()
