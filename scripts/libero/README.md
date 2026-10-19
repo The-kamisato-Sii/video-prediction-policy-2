@@ -1,13 +1,14 @@
-# LIBERO launchers
+# LIBERO production launchers
 
-Production entry points (two nodes, eight H200 each, microbatch16, accumulation1):
+Source `activate_env.sh` before training. All Action recipes default to first-frame decoding, uint8 decoding without redundant conversions, four workers per GPU, ZeRO1, and global batch 256.
 
-- `train_16h200.sh`: FM baseline.
-- `train_meanflow_16h200.sh`: fresh-init MeanFlow.
-- `train_direct_action_16h200.sh`: fresh-init clean-action regression.
+- `train_16h200.sh`: FM baseline, two nodes × eight GPUs, batch 16 per GPU, accumulation 1.
+- `train_meanflow_16h200.sh`: MeanFlow, same 16-GPU layout.
+- `train_direct_action_16h200.sh`: direct action MSE, same 16-GPU layout.
+- `train_action.sh`: confirmed single-node FM recipe, eight GPUs, batch 32 per GPU, accumulation 1.
 
-Source `activate_env.sh` before invoking them. Each accepts `--dry-run` and OmegaConf `key=value` overrides. Qizhi supplies PET_NNODES / PET_NPROC_PER_NODE / PET_NODE_RANK / PET_MASTER_ADDR / PET_MASTER_PORT. Commands and the comparison contract are in `../../docs/libero_one_step.md`.
+`train_baseline.sh` is the shared baseline path/config launcher; `train_one_step.sh` is the shared one-step launcher. Keep these dependencies here. Data preparation, Video post-training, evaluation and environment utilities are also retained.
 
-`train_one_step.sh` implements the shared one-step launcher; the method-specific scripts only select the method and enforce the production layout. `train_8h200_zero1.sh` is the baseline one-node b32 recipe. `train_8h200_zero1_first_frame.sh` remains a compatibility alias with explicit first-frame flags; first-frame decoding is now already the Action default. `train_8h200.sh` is the configurable low-level local-path wrapper. `train_action.sh` and `train_video.sh` are portable low-level entries.
+Historical ZeRO2 and first-frame comparison scripts are archived in `../libero_debug/`. Do not use them for new production runs. Commands for the 16-GPU experiments are in `../../docs/libero_one_step.md`.
 
-Only tracked launchers belong here. Keep run-specific probes/logs under ignored `runs/`. Replace scripts atomically when editing; do not rewrite a file that an executing shell may still be reading in place. Production launchers exec the training process, preserve its exit code, and hold a per-run/per-node lock.
+Production launchers accept `--dry-run` and OmegaConf overrides. Keep run-specific probes and logs under ignored `runs/`. Replace running scripts atomically; production entry points preserve exit codes and hold per-node locks.

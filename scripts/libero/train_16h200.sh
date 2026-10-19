@@ -34,7 +34,7 @@ export RUN_NAME="${RUN_NAME:-libero_action_16h200_b16_zero1}"
   echo 'RUN_NAME must be a simple directory name (letters, digits, dot, underscore, hyphen).' >&2
   exit 2
 }
-launch=(bash scripts/libero/train_8h200.sh
+launch=(bash scripts/libero/train_baseline.sh
   "output_dir=$repo_root/runs/libero/$RUN_NAME"
   overwrite=false max_steps=30000 warmup_steps=500 save_every=5000
   wandb.enabled=true wandb.mode=offline

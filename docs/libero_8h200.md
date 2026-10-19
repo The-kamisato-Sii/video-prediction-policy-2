@@ -1,5 +1,7 @@
 # LIBERO 官方配方与本机 8×H200 调试
 
+> 历史测试记录：测试脚本已归档到 `scripts/libero_debug/`。新的 8 卡训练使用 `scripts/libero/train_action.sh`；16 卡训练使用 `scripts/libero/` 下的正式入口。
+
 配置依据：[VPP2 官方 LIBERO 文档](https://github.com/roboterax/video-prediction-policy-2/blob/72c17acf022494ff63617be86079bb92e92f5bf8/docs/libero.md)。
 本次使用原始 FM Action 训练，不启用 MeanFlow。官方源配置保留在
 `configs/libero/train_video.yaml` 和 `configs/libero/train_action.yaml`。
@@ -110,11 +112,11 @@ bash scripts/libero/init_action.sh \
 
 ```bash
 # 默认：单卡 16，累积 2，8×16×2=256
-bash scripts/libero/train_8h200.sh --dry-run
-bash scripts/libero/train_8h200.sh output_dir=runs/libero/action_b16_acc2
+bash scripts/libero_debug/train_8h200.sh --dry-run
+bash scripts/libero_debug/train_8h200.sh output_dir=runs/libero/action_b16_acc2
 
 # 单卡 32，累积 1，8×32×1=256；已跑通，但显存余量很小
-BATCH_SIZE=32 GRAD_ACC=1 bash scripts/libero/train_8h200.sh \
+BATCH_SIZE=32 GRAD_ACC=1 bash scripts/libero_debug/train_8h200.sh \
   output_dir=runs/libero/action_b32
 ```
 
@@ -138,7 +140,7 @@ BATCH_SIZE=32 GRAD_ACC=1 bash scripts/libero/train_8h200.sh \
 
 ```bash
 BATCH_SIZE=32 GRAD_ACC=1 VPP2_TRAIN_MODULE=checks.libero_training_audit \
-  bash scripts/libero/train_8h200.sh \
+  bash scripts/libero_debug/train_8h200.sh \
   output_dir=runs/libero/probe_b32 max_steps=20 \
   preflight.enabled=true preflight.expected_steps=20 \
   preflight.memory_headroom_fraction=0.05 \
@@ -147,7 +149,7 @@ BATCH_SIZE=32 GRAD_ACC=1 VPP2_TRAIN_MODULE=checks.libero_training_audit \
 
 # STATE 使用 probe.json 中的 state_path（完整优化器/调度器/RNG/数据进度状态目录）。
 BATCH_SIZE=32 GRAD_ACC=1 VPP2_TRAIN_MODULE=checks.libero_training_audit \
-  bash scripts/libero/train_8h200.sh \
+  bash scripts/libero_debug/train_8h200.sh \
   output_dir=runs/libero/probe_b32_resume resume="$STATE" max_steps=22 \
   preflight.enabled=true preflight.expected_steps=22 \
   log_every=1 save_every=22 eval_every=0
@@ -218,7 +220,7 @@ global 256；跨节点吞吐仍须另测。这些调试结束时没有申请 16 
 
 ```bash
 VPP2_TRAIN_MODULE=checks.libero_training_audit \
-  bash scripts/libero/train_8h200.sh \
+  bash scripts/libero_debug/train_8h200.sh \
   output_dir=runs/libero/probe_b16 max_steps=8 \
   preflight.enabled=true preflight.expected_steps=8 \
   preflight.memory_headroom_fraction=0.05 \

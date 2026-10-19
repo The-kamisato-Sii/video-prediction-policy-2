@@ -170,7 +170,7 @@ ZeRO-1 的完整 16 卡吞吐、显存和恢复仍须实测，不能把配置检
 export RUN_NAME="libero-action-8gpu-b32-zero1-${TRAIN_JOB_ID:?}-round${RUNNING_ROUND:-0}"
 export WANDB_PROJECT=VPP2-LIBERO WANDB_MODE=offline
 export WANDB_NAME="$RUN_NAME"
-bash scripts/libero/train_8h200_zero1.sh
+bash scripts/libero_debug/train_8h200_zero1.sh
 ```
 
 该入口固定单卡 batch 32、梯度累积 1、全局 batch 256，训练 30000 步、warmup 500、每 5000 步保存；其余训练参数沿用官方 LIBERO 配置。离线 W&B 位于 `runs/libero/$RUN_NAME/wandb`，文本日志位于 `runs/libero/${RUN_NAME}_logs/node0.log`。这是从相同 Action 初始化权重开始的新实验，不加载 16 卡训练的优化器状态。
@@ -179,7 +179,7 @@ bash scripts/libero/train_8h200_zero1.sh
 
 ### 首帧解码实验（8 H200、ZeRO1、batch 32）
 
-在同样的环境中执行 `bash scripts/libero/train_8h200_zero1_first_frame.sh`。
+在同样的环境中执行 `bash scripts/libero_debug/train_8h200_zero1_first_frame.sh`。
 该入口在数据端设置 `decode_only_first_video_frame=true` 和
 `processor.num_image_obs_steps=1`，保留 65 步原始时间跨度、17 帧逻辑视频长度、
 32 步 action 标签和原来的噪声 latent 形状。当前默认 workers 为每 rank 4，并直接保留 uint8 解码结果，避免重复类型转换。

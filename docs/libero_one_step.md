@@ -63,7 +63,7 @@ bash scripts/libero/train_direct_action_16h200.sh
 '
 ```
 
-`activate_env.sh` sources the local Miniconda `etc/profile.d/conda.sh`, activates the absolute `miniconda/envs/vpp2` environment, and sets CUDA12.8 and PYTHONPATH. Launchers resolve their own repository root, including when invoked from another directory. They use `exec`, per-node locks, absolute checkpoint paths and an explicit training module. Experiment launchers live only in `scripts/libero/`; temporary benchmark commands belong under ignored `runs/`.
+`activate_env.sh` sources the local Miniconda `etc/profile.d/conda.sh`, activates the absolute `miniconda/envs/vpp2` environment, and sets CUDA12.8 and PYTHONPATH. Launchers resolve their own repository root, including when invoked from another directory. They use `exec`, per-node locks, absolute checkpoint paths and an explicit training module. Production launchers live in `scripts/libero/`; archived benchmark launchers live in `scripts/libero_debug/`, and run-specific probes/logs belong under ignored `runs/`.
 
 Files:
 

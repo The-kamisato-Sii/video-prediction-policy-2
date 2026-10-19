@@ -1,5 +1,7 @@
 # LIBERO 8 H200 数据管线实测（2026-10-19）
 
+> 历史测试记录：测试脚本已归档到 `scripts/libero_debug/`。新的 8 卡训练使用 `scripts/libero/train_action.sh`；16 卡训练使用 `scripts/libero/` 下的正式入口。
+
 在 `vpp2-freeze-8h200-1016-0240` 的 `qb-prod-gpu910` 节点顺序运行六组真实 8 卡 ZeRO1 训练。
 单卡 batch 32、累积 1、全局 batch 256，BF16。每组独立初始化并运行 56 步，统计第 9–56 步。
 学习率 1e-4、warmup 500、30k 步 cosine 计划保留；`BenchmarkTrainer` 在优化器和 scheduler 初始化后把测试停止点设为 56。
@@ -26,7 +28,7 @@
 ```bash
 export RUN_NAME=libero-action-8h200-firstframe-w4
 export VPP2_VIDEO_DECODE_UINT8=1
-bash scripts/libero/train_8h200_zero1_first_frame.sh num_workers=4
+bash scripts/libero_debug/train_8h200_zero1_first_frame.sh num_workers=4
 ```
 
 `uint8` 优化是显式开关，仅支持当前 PyAV 数据后端。它保留解码后的 uint8，省掉中间 float→uint8 往返，仍在原有 ToTensor 位置转 float；resize 与归一化顺序不变。
@@ -44,7 +46,7 @@ export VPP2_TRAIN_MODULE=checks.libero_loader_benchmark
 export VPP2_ACCELERATE_CONFIG=configs/libero/accelerate_zero1.yaml
 export BATCH_SIZE=32 GRAD_ACC=1 NUM_WORKERS=4 OMP_NUM_THREADS=2
 export VPP2_VIDEO_DECODE_UINT8=1
-bash scripts/libero/train_8h200.sh \
+bash scripts/libero_debug/train_8h200.sh \
   output_dir=runs/libero/benchmark_uint8_w4_repeat overwrite=false \
   max_steps=30000 warmup_steps=500 log_every=8 eval_every=0 \
   save_every=0 save_final_checkpoint=false \
