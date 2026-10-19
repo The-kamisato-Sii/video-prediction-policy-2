@@ -189,7 +189,8 @@ Action 评估使用 `video_num_frames`，而不是实际解码的单帧长度。
 
 ```bash
 PYTHONPATH=src python checks/libero_first_frame_equivalence.py --output /tmp/libero-first-frame.json
-# 在 H200 上追加 --gpu，比较固定 RNG 下完整模型的 loss 和全部可训练参数梯度。
+# 在 H200 上追加 --gpu：先量化同输入重复运行的梯度差异，再使用确定性算子
+# 检查完整模型的 loss 和全部可训练参数梯度逐元素一致。
 ```
 
 该选项仅用于当前 action-only、首帧 fast path 配置，不应用于需要真实未来图像监督的 Video 训练。

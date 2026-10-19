@@ -1,5 +1,7 @@
 """Compare real LIBERO data and optionally full-model loss for first-frame decoding."""
 import argparse
+import os
+os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
 import json
 from pathlib import Path
 import time
@@ -59,23 +61,60 @@ def main():
         trainer = LiberoTrainer.__new__(LiberoTrainer)
         trainer.train_mode = 'action_only'
         trainer._apply_train_mode(model)
-        results = []
-        for sample in pair:
+        def evaluate(sample):
             torch.manual_seed(123)
             torch.cuda.manual_seed_all(123)
             model.zero_grad(set_to_none=True)
             with torch.autocast('cuda', dtype=torch.bfloat16):
                 loss, _ = model(default_collate([sample]))
             loss.backward()
-            results.append((loss.detach().float().cpu(), {
+            return (loss.detach().float().cpu(), {
                 name: parameter.grad.detach().cpu().clone()
                 for name, parameter in model.named_parameters() if parameter.requires_grad
-            }))
-        torch.testing.assert_close(results[0][0], results[1][0], rtol=0, atol=0)
-        for name in results[0][1]:
-            torch.testing.assert_close(results[0][1][name], results[1][1][name], rtol=0, atol=0)
-        report.update(full_model_loss=float(results[0][0]), full_model_loss_exact_equal=True,
-                      all_trainable_gradients_exact_equal=True)
+            })
+
+        def compare(a, b):
+            delta2 = ref2 = 0.0
+            max_abs = 0.0
+            different = 0
+            for name in a[1]:
+                av, bv = a[1][name].float(), b[1][name].float()
+                difference = av - bv
+                delta2 += float(difference.double().square().sum())
+                ref2 += float(av.double().square().sum())
+                max_abs = max(max_abs, float(difference.abs().max()))
+                different += int(not torch.equal(av, bv))
+            return dict(loss_abs_diff=abs(float(a[0])-float(b[0])),
+                        gradient_relative_l2=(delta2/max(ref2, 1e-30))**0.5,
+                        gradient_max_abs=max_abs, differing_gradient_tensors=different)
+
+        full, short = pair
+        # Diagnose backend repeatability before judging the data-path change.
+        first = evaluate(full)
+        repeat = evaluate(full)
+        report['native_same_input_repeat'] = compare(first, repeat)
+        del repeat
+        changed = evaluate(short)
+        report['native_first_frame_comparison'] = compare(first, changed)
+        del first, changed
+        report['status'] = 'DETERMINISTIC_CHECK_PENDING'
+        Path(args.output).write_text(json.dumps(report, indent=2) + '\n')
+        print(json.dumps(report, indent=2), flush=True)
+        # Test exact equivalence with deterministic kernels, without relaxing tolerance.
+        # This is a separate validation process; production training is unchanged.
+        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.deterministic = True
+        torch.use_deterministic_algorithms(True)
+        first = evaluate(full)
+        changed = evaluate(short)
+        report['deterministic_first_frame_comparison'] = compare(first, changed)
+        report['status'] = 'CHECKING'
+        Path(args.output).write_text(json.dumps(report, indent=2) + '\n')
+        torch.testing.assert_close(first[0], changed[0], rtol=0, atol=0)
+        for name in first[1]:
+            torch.testing.assert_close(first[1][name], changed[1][name], rtol=0, atol=0)
+        report.update(status='PASS', full_model_loss=float(first[0]), full_model_loss_exact_equal=True,
+                      deterministic_trainable_gradients_exact_equal=True)
     Path(args.output).write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))
 
