@@ -59,6 +59,8 @@ global 256，8 步验证峰值 reserved **87.23 GiB**。Video 完整 hash 前后
 官方/本机配置对照、数据来源、训练命令与短跑/恢复检查见
 **[LIBERO 本机训练与实测](docs/libero_8h200.md)**。
 
+**LIBERO 数据管线优化实测：** 同机 8×H200、ZeRO1、单卡 batch 32 下，只解码首帧将平均步耗时从 14.20 秒降至约 4.77 秒；workers 4/8/16/20 吞吐相近。完整对照表及运行方法见 **[数据管线性能对照](docs/libero_loader_benchmark.md)**。
+
 **LIBERO 16×H200 启动准备：** 2 个节点，每节点 8 卡，每卡 batch 16、累积 1，
 global batch 256；按用户要求切换为 ZeRO-1，其余训练配置沿用官方 LIBERO YAML，
 每 5k 步保存，启用离线 W&B。

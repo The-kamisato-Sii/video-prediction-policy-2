@@ -15,6 +15,7 @@ from torch.utils.data import default_collate
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu', action='store_true')
+    parser.add_argument('--uint8', action='store_true')
     parser.add_argument('--output', required=True)
     args = parser.parse_args()
     torch.set_num_threads(2)
@@ -34,9 +35,12 @@ def main():
     # Cover all four suites, including dataset and episode boundary padding.
     for index in [0, 100, 53228, 53229, 120537, 120538, 173432, 173433, 277712]:
         t = time.perf_counter()
+        os.environ.pop("VPP2_VIDEO_DECODE_UINT8", None)
         full = reference[index]
         full_s = time.perf_counter() - t
         t = time.perf_counter()
+        if args.uint8:
+            os.environ["VPP2_VIDEO_DECODE_UINT8"] = "1"
         short = optimized[index]
         short_s = time.perf_counter() - t
         assert full.keys() == short.keys()
@@ -54,7 +58,7 @@ def main():
         rows.append(dict(index=index, reference_seconds=full_s, first_frame_seconds=short_s))
         if index == 100:
             pair = (full, short)
-    report = dict(status='PASS', real_data_exact_equal=True, samples=rows)
+    report = dict(status='PASS', real_data_exact_equal=True, uint8_decode=args.uint8, samples=rows)
     if args.gpu:
         from vpp2.libero.trainer import LiberoTrainer
         model = instantiate(cfg.model, model_dtype=torch.bfloat16, device='cuda')

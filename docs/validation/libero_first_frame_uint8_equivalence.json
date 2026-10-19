@@ -1,0 +1,52 @@
+{
+  "status": "PASS",
+  "real_data_exact_equal": true,
+  "uint8_decode": true,
+  "samples": [
+    {
+      "index": 0,
+      "reference_seconds": 1.5186986289918423,
+      "first_frame_seconds": 0.06711652874946594
+    },
+    {
+      "index": 100,
+      "reference_seconds": 1.370570931583643,
+      "first_frame_seconds": 0.07096819952130318
+    },
+    {
+      "index": 53228,
+      "reference_seconds": 1.3521971069276333,
+      "first_frame_seconds": 0.07096665725111961
+    },
+    {
+      "index": 53229,
+      "reference_seconds": 1.302982609719038,
+      "first_frame_seconds": 0.06990897282958031
+    },
+    {
+      "index": 120537,
+      "reference_seconds": 1.261981550604105,
+      "first_frame_seconds": 0.08653002977371216
+    },
+    {
+      "index": 120538,
+      "reference_seconds": 1.493810374289751,
+      "first_frame_seconds": 0.09161907434463501
+    },
+    {
+      "index": 173432,
+      "reference_seconds": 1.2507730573415756,
+      "first_frame_seconds": 0.07275461032986641
+    },
+    {
+      "index": 173433,
+      "reference_seconds": 1.734641220420599,
+      "first_frame_seconds": 0.08539038151502609
+    },
+    {
+      "index": 277712,
+      "reference_seconds": 1.2785709202289581,
+      "first_frame_seconds": 0.07628968730568886
+    }
+  ]
+}

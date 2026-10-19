@@ -227,7 +227,8 @@ class BaseLerobotDataset(torch.utils.data.Dataset):
         image: torch.Tensor = lerobot_sample[lerobot_key]
         if image.ndim == 3: # time dim will lost when obs_size is 1
             image = image.unsqueeze(0)
-        image = (image * 255).to(torch.uint8) # (1, 3, H, W)
+        if image.dtype != torch.uint8:
+            image = (image * 255).to(torch.uint8) # (1, 3, H, W)
         # For config simplication
         # assert image.shape[1:] == raw_shape, f"Image '{key}' shape {image.shape[1:]} mismatch with {raw_shape}."
         return image

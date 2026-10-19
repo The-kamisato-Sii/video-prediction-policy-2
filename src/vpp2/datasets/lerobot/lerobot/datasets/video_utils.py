@@ -16,6 +16,7 @@
 import glob
 import importlib
 import logging
+import os
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -61,6 +62,10 @@ def decode_video_frames(
     """
     if backend is None:
         backend = get_safe_default_codec()
+    if os.environ.get("VPP2_VIDEO_DECODE_UINT8") == "1":
+        if backend != "pyav":
+            raise ValueError("VPP2_VIDEO_DECODE_UINT8 currently requires the pyav backend")
+        return decode_video_frames_pyav(video_path, timestamps, tolerance_s, return_uint8=True)
     if backend == "torchcodec":
         try:
             return decode_video_frames_torchcodec(video_path, timestamps, tolerance_s)
@@ -187,6 +192,7 @@ def decode_video_frames_pyav(
     timestamps: list[float],
     tolerance_s: float,
     log_loaded_timestamps: bool = False,
+    return_uint8: bool = False,
 ) -> torch.Tensor:
     video_path = str(video_path)
     first_ts = min(timestamps)
@@ -238,7 +244,8 @@ def decode_video_frames_pyav(
     if log_loaded_timestamps:
         logging.info(f"{closest_ts=}")
 
-    closest_frames = closest_frames.type(torch.float32) / 255
+    if not return_uint8:
+        closest_frames = closest_frames.type(torch.float32) / 255
     assert len(timestamps) == len(closest_frames)
     return closest_frames
 
