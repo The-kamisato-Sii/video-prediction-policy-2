@@ -51,4 +51,4 @@ log_dir="$repo_root/runs/libero/${RUN_NAME}_logs"
 mkdir -p "$log_dir"
 exec 9> "$log_dir/node${NODE_RANK}.lock"
 flock -n 9 || { echo "Node $NODE_RANK launcher is already running for $RUN_NAME" >&2; exit 1; }
-"${launch[@]}" 2>&1 | tee -a "$log_dir/node${NODE_RANK}.log"
+exec "${launch[@]}" > >(tee -a "$log_dir/node${NODE_RANK}.log") 2>&1

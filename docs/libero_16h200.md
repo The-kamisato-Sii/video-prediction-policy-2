@@ -161,3 +161,18 @@ WANDB_MODE=online wandb sync runs/libero/libero_action_16h200_b16_zero1/wandb/of
 采样发现 DeepSpeed 参数梯度 hook 的重复扫描占据大量 CPU 时间。
 本次只切换后续启动配置，当前正在运行的 ZeRO-2 进程不受影响。
 ZeRO-1 的完整 16 卡吞吐、显存和恢复仍须实测，不能把配置检查当作端到端验证。
+
+### 单机 8 H200、ZeRO1、单卡 batch 32
+
+沿用上面的 conda/CUDA 环境，在启智选择 1 个实例、每实例 8 张 H200，执行：
+
+```bash
+export RUN_NAME="libero-action-8gpu-b32-zero1-${TRAIN_JOB_ID:?}-round${RUNNING_ROUND:-0}"
+export WANDB_PROJECT=VPP2-LIBERO WANDB_MODE=offline
+export WANDB_NAME="$RUN_NAME"
+bash scripts/libero/train_8h200_zero1.sh
+```
+
+该入口固定单卡 batch 32、梯度累积 1、全局 batch 256，训练 30000 步、warmup 500、每 5000 步保存；其余训练参数沿用官方 LIBERO 配置。离线 W&B 位于 `runs/libero/$RUN_NAME/wandb`，文本日志位于 `runs/libero/${RUN_NAME}_logs/node0.log`。这是从相同 Action 初始化权重开始的新实验，不加载 16 卡训练的优化器状态。
+
+8 卡 ZeRO1 与 16 卡入口均使用 `exec` 启动训练，并通过进程替换写入日志，训练退出码直接传给平台。更新运行中的 shell 文件必须使用临时文件加原子重命名，避免长时间运行的 bash 在训练结束后读取被原地改写的脚本尾部。已有任务已打开的旧脚本不会因原子替换而改变。
