@@ -1490,8 +1490,10 @@ class VPP2(torch.nn.Module):
     ) -> dict[str, Any]:
         self.eval()
         sampler = action_sampler or getattr(self, "action_sampler", "flow_matching")
-        if sampler not in {"flow_matching", "meanflow"}:
+        if sampler not in {"flow_matching", "meanflow", "direct_action"}:
             raise ValueError(f"Unknown action sampler: {sampler}")
+        if sampler == "direct_action" and num_inference_steps != 1:
+            raise ValueError("Direct Action inference requires exactly one action evaluation")
         if sampler == "meanflow":
             if not hasattr(self.action_expert, "time_end_embedding"):
                 raise ValueError("MeanFlow sampling requires a MeanFlow checkpoint")
@@ -1709,6 +1711,8 @@ class VPP2(torch.nn.Module):
                 shift_override=sigma_shift,
             )
         )
+        if sampler == "direct_action":
+            latents_action = torch.zeros_like(latents_action)
         for step_t_action, step_delta_action in zip(infer_timesteps_action, infer_deltas_action):
             timestep_action = step_t_action.unsqueeze(0).to(
                 dtype=latents_action.dtype, device=self.device
@@ -1725,7 +1729,7 @@ class VPP2(torch.nn.Module):
                 **({"timestep_end": torch.zeros_like(timestep_action)} if sampler == "meanflow" else {}),
             )
             pred_action = pred_action_posi
-            latents_action = self.infer_action_scheduler.step(
+            latents_action = pred_action if sampler == "direct_action" else self.infer_action_scheduler.step(
                 pred_action, step_delta_action, latents_action
             )
         result = {

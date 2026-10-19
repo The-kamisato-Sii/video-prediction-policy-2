@@ -20,7 +20,8 @@ def validate_preflight_config(cfg):
         output_file=str(probe.get("output_file") or Path(cfg.output_dir) / "probe.json"),
         video_size=list(cfg.data.train.video_size),
         contract_kwargs=dict(
-            video_frames=17, action_horizon=32, action_dim=7, proprio_steps=1, proprio_dim=8
+            video_frames=1 if cfg.data.train.get("decode_only_first_video_frame", False) else 17,
+            action_horizon=32, action_dim=7, proprio_steps=1, proprio_dim=8
         ),
     )
 

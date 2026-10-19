@@ -130,6 +130,7 @@ def data_loss(
     generator=None,
     gamma=0.0,
     alpha=0.1,
+    baseline_reduction=False,
 ):
     """Separate live policy prediction from detached JVP values and generator graph."""
     v = noise.float() - clean.float()
@@ -173,7 +174,8 @@ def data_loss(
             gen_loss = reduce_valid(omega * residual, active & has_valid)
     else:
         raise ValueError(f"Unsupported data objective: {objective}")
-    policy_loss = masked_mse(pred, target.detach(), is_pad)
+    policy_loss = (masked_per_sample(pred, target.detach(), is_pad)[0].mean()
+                   if baseline_reduction else masked_mse(pred, target.detach(), is_pad))
     effective_d = d if objective == "data_meanflow" else split.detach()
     correction = expand_time(gap, v) * effective_d
     metrics = dict(

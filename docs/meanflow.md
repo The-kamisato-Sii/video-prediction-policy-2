@@ -1,3 +1,5 @@
+> Fresh-init LIBERO one-step comparisons now use [the controlled LIBERO recipe](libero_one_step.md). The presets below retain their original Action30k continuation semantics.
+
 # MeanFlow implementation and verification
 
 This is an opt-in implementation of the README's stage 1–3 engineering work.

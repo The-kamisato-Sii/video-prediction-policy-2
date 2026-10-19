@@ -104,7 +104,7 @@ bash scripts/libero/init_action.sh \
   --config configs/libero/train_action.yaml --output weights/libero/action_init.pt
 ```
 
-8 卡全局 batch 256 的两种方式；launcher 只处理本机路径及 batch，完整学习超参数来自官方 YAML。官方每 rank 的 DataLoader workers=16；本机默认 8，
+8 卡全局 batch 256 的两种方式；launcher 只处理本机路径及 batch，完整学习超参数来自官方 YAML。官方每 rank 的 DataLoader workers=16；本机默认 4，
 因为节点 `/dev/shm` 为 128 GiB，避免 batch 32 的大量视频预取队列耗尽共享内存。
 可用 `NUM_WORKERS=16` 恢复官方 worker 数；它不改变样本、batch 或优化器配置：
 

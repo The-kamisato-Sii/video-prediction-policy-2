@@ -1,0 +1,23 @@
+# Controlled fresh Action initialization; not continuation from Action-30k.
+_base_: train_action.yaml
+benchmark: libero
+output_dir: runs/libero/direct_action_fresh
+batch_size: 16
+gradient_accumulation_steps: 1
+meanflow:
+  objective: direct_action
+  time_convention: clean0_noise1
+  preserve_baseline_trainability: true
+  student_init:
+    format: baseline_init
+    action_checkpoint: weights/libero/action_init.pt
+    video_checkpoint: weights/libero/video_step010000.pt
+  interval:
+    source: shifted_uniform
+    diagonal_probability: 0.5
+  loss_weighting: uniform
+  derivative_backend: none
+  auxiliary_geometry: false
+inference:
+  action_sampler: direct_action
+  action_nfe: 1

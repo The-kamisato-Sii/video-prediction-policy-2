@@ -80,6 +80,25 @@ def create_model(benchmark, meanflow, **kwargs):
     factory = create_vpp2_wan21_14b if benchmark == "robodojo" else create_action_model
     cls = MeanFlowVPP2 if benchmark == "robodojo" else MeanFlowLibero
     spec = cfg["student_init"]
+    if spec["format"] == "baseline_init":
+        if benchmark != "libero" or cfg["objective"] not in {"data_meanflow", "direct_action"}:
+            raise ValueError("baseline_init is for LIBERO one-step controlled experiments")
+        kwargs.update(action_dit_pretrained_path=str(Path(spec["action_checkpoint"]).resolve()),
+                      dit_checkpoint_path=str(Path(spec["video_checkpoint"]).resolve()),
+                      skip_dit_load_from_pretrain=False)
+        action_init = torch.load(kwargs["action_dit_pretrained_path"], map_location="cpu", mmap=True, weights_only=True)
+        video_init = torch.load(kwargs["dit_checkpoint_path"], map_location="cpu", mmap=True, weights_only=True)
+        if action_init.get("format") != "wan21_action_v1" or action_init.get("policy", {}).get("source_step") != 10000:
+            raise ValueError("Controlled LIBERO runs require fresh Action initialization from Video10k")
+        if video_init.get("step") != 10000 or "dit" not in video_init:
+            raise ValueError("Controlled LIBERO runs require standalone Video10k")
+        del action_init, video_init
+        student = factory(**kwargs, _model_class=cls)
+        source = dict(format="baseline_init", source_step=0, video_source_step=10000,
+                      action_checkpoint=kwargs["action_dit_pretrained_path"],
+                      video_checkpoint=kwargs["dit_checkpoint_path"])
+        student.configure_meanflow(cfg, dict(student=source, teacher=None))
+        return student
     # Never pass a release action.pt to the fresh backbone initializer.
     kwargs.update(action_dit_pretrained_path=None, skip_dit_load_from_pretrain=True)
     student = factory(**kwargs, _model_class=cls)

@@ -24,7 +24,7 @@ case "$MASTER_ADDR" in
     exit 2 ;;
 esac
 export MASTER_PORT="${MASTER_PORT:-${PET_MASTER_PORT:-29616}}"
-export BATCH_SIZE=16 GRAD_ACC=1 NUM_WORKERS=16
+export BATCH_SIZE=16 GRAD_ACC=1 NUM_WORKERS=4
 export VPP2_TRAIN_MODULE=vpp2.libero.cli
 export VPP2_ACCELERATE_CONFIG=configs/libero/accelerate_zero1.yaml
 export WANDB_MODE=offline

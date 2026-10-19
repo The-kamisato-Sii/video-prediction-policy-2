@@ -1,7 +1,7 @@
 output_dir: runs/libero/action
 overwrite: true
 batch_size: 32
-num_workers: 16
+num_workers: 4
 lr_scheduler_type: cosine
 learning_rate: 0.0001
 warmup_steps: 500
@@ -74,6 +74,8 @@ data:
       - key: default
         raw_shape: 8
         shape: 8
+    decode_only_first_video_frame: true
+    decode_sampled_video_frames: false
     num_frames: 65
     action_horizon: 32
     global_sample_stride: 1
@@ -88,6 +90,7 @@ data:
     skip_padding_as_possible: false
     concat_multi_camera: horizontal
     processor:
+      num_image_obs_steps: 1
       _target_: vpp2.datasets.lerobot.processors.vpp2_processor.VPP2Processor
       shape_meta:
         images:

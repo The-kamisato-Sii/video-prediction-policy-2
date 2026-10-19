@@ -33,10 +33,11 @@ def validate_checkpoint(cfg):
     if not mf and cfg.get("action_sampler", "flow_matching") != "flow_matching":
         raise ValueError("An FM checkpoint must not be relabeled MeanFlow")
     if mf:
-        if cfg.get("action_sampler") != "meanflow" or int(cfg.get("action_nfe", 0)) != 1:
-            raise ValueError("MeanFlow evaluation requires explicit action_sampler=meanflow action_nfe=1")
+        if cfg.get("action_sampler") != mf.get("action_sampler", "meanflow") or int(cfg.get("action_nfe", 0)) != 1:
+            raise ValueError("One-step evaluation requires the checkpoint sampler and action_nfe=1")
         source = mf["provenance"]["student"]
-        if source["source_step"] != 30000 or action.get("step") != mf["student_update_step"]:
+        expected_source = 0 if source.get("format") == "baseline_init" else 30000
+        if source["source_step"] != expected_source or int(cfg.get("source_action_step", -1)) != expected_source or action.get("step") != mf["student_update_step"]:
             raise ValueError("Invalid MeanFlow source/update metadata")
     if (not mf and not continuation and action.get("step") != 30000) or video.get("step") != 10000 or not video.get("dit"):
         raise ValueError("Expected compact Action 30k and standalone Video 10k")
@@ -49,7 +50,7 @@ def validate_checkpoint(cfg):
     if action["proprio_encoder"]["weight"].shape != (4096, 8):
         raise ValueError("Expected LIBERO proprio8 -> text4096")
     return dict(action_step=action["step"], video_step=video["step"],
-                action_sampler="meanflow" if mf else "flow_matching",
+                action_sampler=mf.get("action_sampler", "meanflow") if mf else "flow_matching",
                 action_nfe=int(cfg.get("action_nfe", 10)), meanflow=mf)
 
 

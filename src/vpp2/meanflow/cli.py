@@ -25,7 +25,7 @@ def load_config(path, overrides=()):
     m = cfg.meanflow
     if cfg.benchmark not in {"robodojo", "libero"}:
         raise ValueError("Unknown benchmark")
-    if m.objective not in {"teacher_trajectory", "data_meanflow", "kmf"}:
+    if m.objective not in {"teacher_trajectory", "data_meanflow", "kmf", "direct_action"}:
         raise ValueError("Unsupported objective; hybrid must be a separate explicit experiment")
     if (
         m.time_convention != "clean0_noise1"
@@ -41,13 +41,17 @@ def load_config(path, overrides=()):
         expected_shift = 1.0 if cfg.benchmark == "robodojo" else 5.0
         if m.teacher.steps != 10 or m.teacher.sigma_shift != expected_shift:
             raise ValueError("Main teacher must use the original 10-step deployment schedule")
+    elif m.objective == "direct_action":
+        if cfg.benchmark != "libero" or m.derivative_backend != "none":
+            raise ValueError("Direct Action MSE is LIBERO-only and uses no derivative")
     elif m.derivative_backend not in {"jvp", "finite_difference"}:
         raise ValueError("Data objectives require an explicit derivative backend")
     if m.objective == "kmf" and m.split not in {"learned", "midpoint"}:
         raise ValueError("K-MF split must be learned or midpoint")
     if cfg.model.action_dit_config.num_layers != 40 or cfg.model.video_dit_config.num_layers != 40:
         raise ValueError("Both original 40-layer experts must be retained")
-    if cfg.inference.action_sampler != "meanflow" or cfg.inference.action_nfe != 1:
+    expected_sampler = "direct_action" if m.objective == "direct_action" else "meanflow"
+    if cfg.inference.action_sampler != expected_sampler or cfg.inference.action_nfe != 1:
         raise ValueError("MeanFlow deployment must use one action NFE")
     if cfg.resume_ckpt:
         raise ValueError(
@@ -66,8 +70,9 @@ def load_config(path, overrides=()):
     cfg.model._target_ = "vpp2.meanflow.runtime.create_model"
     cfg.model.benchmark = cfg.benchmark
     cfg.model.meanflow = "${meanflow}"
-    cfg.model.action_dit_pretrained_path = None
-    cfg.model.skip_dit_load_from_pretrain = True
+    fresh = cfg.meanflow.student_init.format == "baseline_init"
+    cfg.model.action_dit_pretrained_path = cfg.meanflow.student_init.action_checkpoint if fresh else None
+    cfg.model.skip_dit_load_from_pretrain = not fresh
     cfg.meanflow.budget_steps = int(cfg.max_steps)
     cfg.eval_num_inference_steps = 1
     cfg.evaluation.num_inference_steps = 1
@@ -99,6 +104,13 @@ def main():
         objective=cfg.meanflow.objective,
         world_size=world,
         global_batch=batch,
+        micro_batch=int(cfg.batch_size),
+        gradient_accumulation_steps=int(cfg.gradient_accumulation_steps),
+        num_workers=int(cfg.num_workers),
+        learning_rate=float(cfg.learning_rate),
+        max_steps=int(cfg.max_steps),
+        save_every=int(cfg.save_every),
+        action_sampler=cfg.inference.action_sampler,
         reference_global_batch=cfg.reference_global_batch_size,
         train_mode=cfg.train_mode,
         action_nfe=1,

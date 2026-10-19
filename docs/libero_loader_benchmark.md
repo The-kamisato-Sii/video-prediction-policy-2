@@ -53,6 +53,6 @@ bash scripts/libero/train_8h200.sh \
   profiling.synchronize_cuda=false profiling.log_every=8
 ```
 
-原始流程：unset `VPP2_VIDEO_DECODE_UINT8` 并去掉两个 `data.train.*` 首帧覆盖项，workers=16。
-仅首帧：保留首帧覆盖项但 unset `VPP2_VIDEO_DECODE_UINT8`，workers=16。
+原始流程（当前默认已优化）：设置 `VPP2_VIDEO_DECODE_UINT8=0`，显式覆盖 `data.train.decode_only_first_video_frame=false data.train.processor.num_image_obs_steps=65`，workers=16。
+仅首帧：保留首帧覆盖项但设置 `VPP2_VIDEO_DECODE_UINT8=0`，workers=16。
 worker 扫描：保留两种优化，分别设置 `NUM_WORKERS=4/8/16/20`。

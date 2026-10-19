@@ -268,11 +268,13 @@ def test_cached_teacher_matches_scheduler():
     torch.testing.assert_close(z, states[-1], rtol=0, atol=0)
 
 
-def test_inference_counts_all_40_blocks_once():
+@pytest.mark.parametrize("sampler", ["meanflow", "direct_action"])
+def test_inference_counts_all_40_blocks_once(sampler):
 
     m = tiny_model(layers=40).eval()
-    m.action_expert.enable_meanflow()
-    m.action_sampler = "meanflow"
+    if sampler == "meanflow":
+        m.action_expert.enable_meanflow()
+    m.action_sampler = sampler
     m._encode_input_image_latents_tensor = lambda **kwargs: torch.zeros(1, 16, 1, 2, 2)
     m._encode_clip_fea_from_image = lambda x: None
     counts = [0] * 40

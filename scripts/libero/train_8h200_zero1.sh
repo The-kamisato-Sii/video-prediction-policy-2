@@ -12,7 +12,7 @@ export NODE_RANK="${NODE_RANK:-${PET_NODE_RANK:-0}}"
 }
 export MASTER_ADDR="${MASTER_ADDR:-${PET_MASTER_ADDR:-127.0.0.1}}"
 export MASTER_PORT="${MASTER_PORT:-${PET_MASTER_PORT:-29618}}"
-export BATCH_SIZE=32 GRAD_ACC=1 NUM_WORKERS=16
+export BATCH_SIZE=32 GRAD_ACC=1 NUM_WORKERS=4
 export VPP2_TRAIN_MODULE=vpp2.libero.cli
 export VPP2_ACCELERATE_CONFIG=configs/libero/accelerate_zero1.yaml
 export WANDB_MODE=offline

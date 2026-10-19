@@ -26,6 +26,8 @@ def main():
         cfg.model[key] = str(Path(cfg.model[key]).resolve())
         if not Path(cfg.model[key]).exists():
             raise FileNotFoundError(cfg.model[key])
+    cfg.data.train.decode_only_first_video_frame = False
+    cfg.data.train.processor.num_image_obs_steps = 65
     reference = instantiate(cfg.data.train)
     optimized_cfg = OmegaConf.create(OmegaConf.to_container(cfg.data.train, resolve=True))
     optimized_cfg.decode_only_first_video_frame = True

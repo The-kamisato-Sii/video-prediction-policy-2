@@ -12,7 +12,7 @@
 `overlap_comm=false`、`contiguous_gradients=false`；配置在 `configs/libero/deepspeed_zero1.json`。
 其余训练配方保持官方值：Action1B + proprio，冻结 Video，BF16，
 LR 1e-4、warmup 500、cosine 下限 0.01、30,000 步，AdamW betas=(0.9,0.95)、
-weight decay=0.01、clip=1、seed=42。每卡 DataLoader workers=16，
+weight decay=0.01、clip=1、seed=42。每卡 DataLoader workers=4，
 每 10 步记录训练指标、每 200 步运行固定样本动作诊断、每 5,000 步保存权重及完整训练状态。
 固定样本动作诊断不是 LIBERO 模拟器成功率评测。
 
@@ -77,7 +77,7 @@ bash scripts/libero/train_16h200.sh \
 '
 ```
 
-脚本固定单卡 batch=16、累积=1、workers=16，并检查拓扑为 2×8。
+脚本固定单卡 batch=16、累积=1、workers=4，并检查拓扑为 2×8。
 `RUNNING_ROUND` 用于区分输出目录；此命令每轮从 Action 初始化开始，不自动查找断点续训。
 脚本使用 `MASTER_ADDR` / `MASTER_PORT`，并优先使用 `NODE_RANK`；
 未提供时也支持直接读取 `PET_*`，节点编号还可回退至 launcher 启动前的平台 `RANK`（必须为 0 或 1）。
@@ -182,7 +182,7 @@ bash scripts/libero/train_8h200_zero1.sh
 在同样的环境中执行 `bash scripts/libero/train_8h200_zero1_first_frame.sh`。
 该入口在数据端设置 `decode_only_first_video_frame=true` 和
 `processor.num_image_obs_steps=1`，保留 65 步原始时间跨度、17 帧逻辑视频长度、
-32 步 action 标签和原来的噪声 latent 形状。workers 仍为每 rank 16。
+32 步 action 标签和原来的噪声 latent 形状。当前默认 workers 为每 rank 4，并直接保留 uint8 解码结果，避免重复类型转换。
 Action 评估使用 `video_num_frames`，而不是实际解码的单帧长度。
 
 真实数据等价性验证（涵盖四个子集及边界）：

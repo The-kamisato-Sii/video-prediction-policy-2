@@ -64,11 +64,11 @@ def validate_config(cfg):
     if cfg.benchmark not in PROTOCOLS or cfg.protocol != PROTOCOLS[cfg.benchmark]["name"]:
         raise ValueError("Benchmark/protocol mismatch")
     sampler = cfg.get("action_sampler", "flow_matching")
-    if sampler not in {"flow_matching", "meanflow"}:
+    if sampler not in {"flow_matching", "meanflow", "direct_action"}:
         raise ValueError("Unknown action sampler")
-    if sampler == "meanflow":
-        if int(cfg.get("action_nfe", 0)) != 1 or int(cfg.get("source_action_step", 0)) != 30000:
-            raise ValueError("MeanFlow requires action_nfe=1 and source_action_step=30000")
+    if sampler in {"meanflow", "direct_action"}:
+        if int(cfg.get("action_nfe", 0)) != 1 or int(cfg.get("source_action_step", -1)) not in {0, 30000}:
+            raise ValueError("One-step evaluation requires action_nfe=1 and source_action_step=0 (fresh) or 30000 (continuation)")
         if int(cfg.action_step) <= 0:
             raise ValueError("action_step must be the actual positive student update count")
     elif int(cfg.get("action_nfe", 10)) not in {1, 10}:

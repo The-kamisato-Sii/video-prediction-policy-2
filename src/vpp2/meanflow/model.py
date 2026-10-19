@@ -13,6 +13,7 @@ from .objectives import (
     data_loss,
     directional_derivative,
     masked_mse,
+    masked_per_sample,
     sample_intervals,
     teacher_intervals,
     valid_elements,
@@ -96,8 +97,11 @@ class MeanFlowMixin:
     def configure_meanflow(self, config, provenance, teacher=None):
         self.meanflow_config = dict(config)
         self.meanflow_provenance = provenance
-        self.action_sampler = "meanflow"
-        self.action_expert.enable_meanflow()
+        self.action_sampler = "direct_action" if config["objective"] == "direct_action" else "meanflow"
+        if self.action_sampler == "meanflow":
+            # Do not perturb baseline RNG after constructing the shared parameters.
+            with torch.random.fork_rng(devices=[]):
+                self.action_expert.enable_meanflow()
         self.split_generator = None
         if config["objective"] == "kmf" and config.get("split", "midpoint") == "learned":
             self.split_generator = SplitGenerator().to(device=self.device, dtype=torch.float32)
@@ -142,7 +146,16 @@ class MeanFlowMixin:
         kind = cfg["objective"]
         interval = cfg["interval"]
         metrics = {}
-        if kind == "teacher_trajectory":
+        if kind == "direct_action":
+            # Fixed zero action queries; the output is clean normalized action, not velocity.
+            t = torch.ones(action.shape[0], device=action.device)
+            r = torch.zeros_like(t)
+            pred = self.predict_action_velocity_with_cache(
+                latents_action=torch.zeros_like(action), timestep_action=t * 1000.0, **condition
+            )
+            action_loss = masked_per_sample(pred, action, pad)[0].mean()
+            metrics["teacher_nfe"] = 0
+        elif kind == "teacher_trajectory":
             teacher = self._teacher
             if teacher is None:
                 raise RuntimeError("Training requires the independent frozen teacher")
@@ -214,6 +227,7 @@ class MeanFlowMixin:
                 generator=self.split_generator,
                 gamma=-0.5 + progress,
                 alpha=cfg.get("generator_alpha", 0.1),
+                baseline_reduction=cfg.get("student_init", {}).get("format") == "baseline_init",
             )
             metrics["teacher_nfe"] = 0
         video_loss = action_loss.new_zeros(())
@@ -251,7 +265,7 @@ class MeanFlowMixin:
         return dict(
             version=1,
             objective=self.meanflow_config["objective"],
-            action_sampler="meanflow",
+            action_sampler=self.action_sampler,
             action_nfe=1,
             student_update_step=step,
             provenance=self.meanflow_provenance,
@@ -281,6 +295,12 @@ class MeanFlowMixin:
             raise ValueError(
                 "Resume objective differs; use explicit FM initialization for new experiments"
             )
+        if "action_expert" in payload and "mot" not in payload:
+            if self.meanflow_benchmark != "libero":
+                raise ValueError("Compact action checkpoints are LIBERO-only")
+            step = super().load_checkpoint(path, optimizer=optimizer, **kwargs)
+            self.meanflow_update_step.fill_(int(step or 0))
+            return step
         self.mot.load_state_dict(payload["mot"], strict=True)
         self.proprio_encoder.load_state_dict(payload["proprio_encoder"], strict=True)
         if self.split_generator is not None:

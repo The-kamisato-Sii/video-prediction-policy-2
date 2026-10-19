@@ -212,12 +212,16 @@ def run_training(cfg):
     from .diagnostics import VideoComparisonEvaluator, ActionDiagnosticEvaluator
     from torch.utils.data import default_collate
 
+    if cfg.train_mode == "action_only":
+        os.environ.setdefault("VPP2_VIDEO_DECODE_UINT8", "1")
     setup_logging()
     out = Path(cfg.output_dir)
     out.mkdir(parents=True, exist_ok=True)
     misc.register_work_dir(out)
     if int(os.environ.get("RANK", "0")) == 0:
         OmegaConf.save(cfg, out / "config.yaml", resolve=True)
+    from accelerate.utils import set_seed
+    set_seed(int(cfg.seed))
     model = instantiate(
         cfg.model,
         model_dtype=_mixed_precision_to_model_dtype(cfg.mixed_precision),

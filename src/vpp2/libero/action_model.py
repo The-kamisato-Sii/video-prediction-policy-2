@@ -63,8 +63,9 @@ class LiberoActionModel(VPP2):
                 video = Path(path).resolve().parent / video
             self._load_video_base_state_dict(self._load_video_checkpoint_state(video))
         if payload.get("meanflow"):
-            self.action_expert.enable_meanflow()
-            self.action_sampler = "meanflow"
+            self.action_sampler = payload["meanflow"].get("action_sampler", "meanflow")
+            if self.action_sampler == "meanflow":
+                self.action_expert.enable_meanflow()
         else:
             self.action_sampler = "flow_matching"
         self.action_expert.load_state_dict(payload["action_expert"], strict=True)

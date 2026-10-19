@@ -853,8 +853,7 @@ class JointTrainer:
                     self.batch_in_epoch,
                     self.batch_in_epoch
                     * self.batch_size
-                    * self.accelerator.num_processes
-                    * self.gradient_accumulation_steps,
+                    * self.accelerator.num_processes,
                 )
             else:
                 self.epoch = 0

@@ -59,6 +59,8 @@ global 256，8 步验证峰值 reserved **87.23 GiB**。Video 完整 hash 前后
 官方/本机配置对照、数据来源、训练命令与短跑/恢复检查见
 **[LIBERO 本机训练与实测](docs/libero_8h200.md)**。
 
+**LIBERO 单步对照：** [MeanFlow / 直接 Action MSE 的 16 卡启动指令与控制变量](docs/libero_one_step.md)。默认首帧＋uint8、每卡 4 workers；从相同 Action 初始化开始，冻结 Video-10k。
+
 **LIBERO 数据管线优化实测：** 同机 8×H200、ZeRO1、单卡 batch 32 下，只解码首帧将平均步耗时从 14.20 秒降至约 4.77 秒；workers 4/8/16/20 吞吐相近。完整对照表及运行方法见 **[数据管线性能对照](docs/libero_loader_benchmark.md)**。
 
 **LIBERO 16×H200 启动准备：** 2 个节点，每节点 8 卡，每卡 batch 16、累积 1，
@@ -631,3 +633,10 @@ If you use VPP2 in your research, please cite our [paper](https://arxiv.org/abs/
 The code is released under the [MIT License](LICENSE). Third-party components
 retain their original licenses; see [third-party notices](THIRD_PARTY_NOTICES.md).
 Model weights, datasets, and simulator assets have their own terms.
+
+### LIBERO: controlled one-step training
+
+New LIBERO Action defaults: first-frame decoding, uint8 image path, 4 workers/GPU.
+See [MeanFlow and Direct Action MSE](docs/libero_one_step.md) for the shared controls,
+16-H200 Qizhi commands, environment activation, logs and validation.
+Both start from baseline Action initialization, not the trained Action30k release.

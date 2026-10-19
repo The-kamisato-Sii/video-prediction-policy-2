@@ -1,0 +1,286 @@
+{
+  "validated_at_utc": "2026-10-19T12:45:59.817991+00:00",
+  "status": "8_GPU_VALIDATED_16_GPU_QUEUED",
+  "notebook_id": "9ba2ca8c-3d71-4daa-a251-929dbde6f05a",
+  "notebook_name": "vpp2-freeze-8h200-1016-0240",
+  "hardware": "8 x H200, single node",
+  "training_probe": {
+    "world_size": 8,
+    "micro_batch": 16,
+    "gradient_accumulation_steps": 2,
+    "global_batch": 256,
+    "zero_stage": 1,
+    "num_workers": 4,
+    "max_steps_schedule": 30000,
+    "warmup_steps": 500,
+    "initial_updates": 4,
+    "resume_from": 4,
+    "resume_to": 5,
+    "real_data": true,
+    "full_size_model": true
+  },
+  "unit_tests": {
+    "passed": 40,
+    "log": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/runs/libero_one_step_validation/tests.log"
+  },
+  "data_equivalence": {
+    "status": "PASS",
+    "real_data_exact_equal": true,
+    "uint8_decode": true,
+    "samples": [
+      {
+        "index": 0,
+        "reference_seconds": 1.4582510478794575,
+        "first_frame_seconds": 0.06728234887123108
+      },
+      {
+        "index": 100,
+        "reference_seconds": 1.2716675847768784,
+        "first_frame_seconds": 0.06796533614397049
+      },
+      {
+        "index": 53228,
+        "reference_seconds": 1.2024355418980122,
+        "first_frame_seconds": 0.10638459026813507
+      },
+      {
+        "index": 53229,
+        "reference_seconds": 1.1854028478264809,
+        "first_frame_seconds": 0.0798509456217289
+      },
+      {
+        "index": 120537,
+        "reference_seconds": 1.1432965360581875,
+        "first_frame_seconds": 0.07640983164310455
+      },
+      {
+        "index": 120538,
+        "reference_seconds": 1.3050416633486748,
+        "first_frame_seconds": 0.07357482984662056
+      },
+      {
+        "index": 173432,
+        "reference_seconds": 1.2240591160953045,
+        "first_frame_seconds": 0.07062498480081558
+      },
+      {
+        "index": 173433,
+        "reference_seconds": 1.3879513628780842,
+        "first_frame_seconds": 0.07308874651789665
+      },
+      {
+        "index": 277712,
+        "reference_seconds": 1.1616853959858418,
+        "first_frame_seconds": 0.0684741847217083
+      }
+    ]
+  },
+  "checkpoint_evaluation_validation": {
+    "meanflow": {
+      "action_step": 4,
+      "video_step": 10000,
+      "action_sampler": "meanflow",
+      "action_nfe": 1
+    },
+    "direct_action": {
+      "action_step": 4,
+      "video_step": 10000,
+      "action_sampler": "direct_action",
+      "action_nfe": 1
+    }
+  },
+  "methods": {
+    "meanflow": {
+      "fresh": {
+        "status": "PASS",
+        "ranks": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "losses": [
+          {
+            "step": 1,
+            "loss": 1.4432
+          },
+          {
+            "step": 2,
+            "loss": 1.4157
+          },
+          {
+            "step": 3,
+            "loss": 1.4117
+          },
+          {
+            "step": 4,
+            "loss": 1.3919
+          }
+        ],
+        "gradient_norms": [
+          3.6751,
+          3.7612,
+          3.8068,
+          3.7722
+        ],
+        "log": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/runs/libero_one_step_validation/meanflow.log"
+      },
+      "resume": {
+        "status": "PASS",
+        "ranks": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "losses": [
+          {
+            "step": 5,
+            "loss": 1.4336
+          }
+        ],
+        "gradient_norms": [
+          3.8523
+        ],
+        "log": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/runs/libero_one_step_validation/meanflow_resume.log"
+      },
+      "checkpoint": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/runs/libero/validate-meanflow-8h200-v1/checkpoints/weights/step_000004.pt",
+      "offline_wandb_runs": [
+        "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/runs/libero/validate-meanflow-8h200-v1/wandb/offline-run-20261019_122510-jrl4wsff",
+        "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/runs/libero/validate-meanflow-8h200-v1/wandb/offline-run-20261019_123945-ncvz8nmm"
+      ],
+      "production_dry_run": {
+        "benchmark": "libero",
+        "objective": "data_meanflow",
+        "world_size": 16,
+        "global_batch": 256,
+        "micro_batch": 16,
+        "gradient_accumulation_steps": 1,
+        "num_workers": 4,
+        "learning_rate": 0.0001,
+        "max_steps": 30000,
+        "save_every": 5000,
+        "action_sampler": "meanflow",
+        "reference_global_batch": 256,
+        "train_mode": "action_only",
+        "action_nfe": 1,
+        "derivative_backend": "jvp",
+        "student_init": {
+          "format": "baseline_init",
+          "action_checkpoint": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/weights/libero/action_init.pt",
+          "video_checkpoint": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/weights/libero/video_step010000.pt"
+        }
+      }
+    },
+    "direct_action": {
+      "fresh": {
+        "status": "PASS",
+        "ranks": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "losses": [
+          {
+            "step": 1,
+            "loss": 0.2984
+          },
+          {
+            "step": 2,
+            "loss": 0.2984
+          },
+          {
+            "step": 3,
+            "loss": 0.2883
+          },
+          {
+            "step": 4,
+            "loss": 0.2998
+          }
+        ],
+        "gradient_norms": [
+          2.9749,
+          2.9921,
+          2.9873,
+          2.9013
+        ],
+        "log": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/runs/libero_one_step_validation/direct_action.log"
+      },
+      "resume": {
+        "status": "PASS",
+        "ranks": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "losses": [
+          {
+            "step": 5,
+            "loss": 0.2893
+          }
+        ],
+        "gradient_norms": [
+          2.936
+        ],
+        "log": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/runs/libero_one_step_validation/direct_action_resume.log"
+      },
+      "checkpoint": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/runs/libero/validate-direct_action-8h200-v1/checkpoints/weights/step_000004.pt",
+      "offline_wandb_runs": [
+        "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/runs/libero/validate-direct_action-8h200-v1/wandb/offline-run-20261019_121743-whr4r169",
+        "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/runs/libero/validate-direct_action-8h200-v1/wandb/offline-run-20261019_123250-o1ueoc4x"
+      ],
+      "production_dry_run": {
+        "benchmark": "libero",
+        "objective": "direct_action",
+        "world_size": 16,
+        "global_batch": 256,
+        "micro_batch": 16,
+        "gradient_accumulation_steps": 1,
+        "num_workers": 4,
+        "learning_rate": 0.0001,
+        "max_steps": 30000,
+        "save_every": 5000,
+        "action_sampler": "direct_action",
+        "reference_global_batch": 256,
+        "train_mode": "action_only",
+        "action_nfe": 1,
+        "derivative_backend": "none",
+        "student_init": {
+          "format": "baseline_init",
+          "action_checkpoint": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/weights/libero/action_init.pt",
+          "video_checkpoint": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/weights/libero/video_step010000.pt"
+        }
+      }
+    }
+  },
+  "sixteen_gpu": {
+    "job_id": "job-9ec7be7f-c87b-4265-b00d-a4cb94610020",
+    "priority": 10,
+    "status": "QUEUING",
+    "actual_training_passed": false,
+    "reason": "Platform reports insufficient schedulable resources; dry runs are not counted as multi-node execution."
+  },
+  "limitations": [
+    "Short training and inference checks do not establish convergence or LIBERO task success rate.",
+    "Historical baseline random projection/proprio initialization was not seeded before model construction; use the updated baseline for identical initialization.",
+    "Method-specific losses, time inputs, and MeanFlow endpoint embedding intentionally differ."
+  ]
+}

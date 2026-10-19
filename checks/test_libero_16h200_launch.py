@@ -53,7 +53,7 @@ def test_two_node_recipe_preserves_official_training(tmp_path, rank, platform_pr
     assert ds == official_ds
     assert cfg.batch_size * cfg.gradient_accumulation_steps * 16 == 256
     assert cfg.batch_size == 16 and cfg.gradient_accumulation_steps == 1
-    assert cfg.num_workers == 16 and cfg.save_every == 5000
+    assert cfg.num_workers == 4 and cfg.save_every == 5000
     assert cfg.wandb.enabled and cfg.wandb.mode == "offline"
     assert cfg.wandb.project == "test-libero" and cfg.wandb.name == "test-action16"
     # Everything outside local paths, batch, output safety and tracking is identical.
