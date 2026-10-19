@@ -12,7 +12,7 @@ All new LIBERO Action runs use first-frame decoding, uint8 decoding without a fl
 | Trainable modules | Action + proprio | same, plus endpoint embedding | same |
 | Data | four-suite natural mixture, same stats/context128 | same | same |
 | Input / output | two cameras 224x448, action32x7, proprio8 | same | same |
-| GPUs / microbatch / accumulation | 16 / 16 / 1 | same | same |
+| GPUs / microbatch / accumulation | auto / 256 ÷ GPUs / 1 | same | same |
 | Global batch | 256 | 256 | 256 |
 | AdamW / LR / weight decay | (0.9,0.95) / 1e-4 / 0.01 | same | same |
 | Schedule | 500 warmup, cosine to 0.01 ratio, 30000 updates | same | same |
@@ -22,7 +22,7 @@ All new LIBERO Action runs use first-frame decoding, uint8 decoding without a fl
 | W&B | offline | offline | offline |
 | Action NFE at inference | 10 | 1 | 1 |
 
-Seed42 is now set **before** model construction, identically across ranks; training then uses the existing seed+rank streams. Earlier runs seeded only inside the trainer, after constructing random projections/proprio. Consequently those historical checkpoints cannot be claimed to have bit-identical random initialization. For a strict new experiment, rerun the baseline with `scripts/libero/train_16h200.sh`; its shared parameters match the two new methods at initialization.
+Seed42 is now set **before** model construction, identically across ranks; training then uses the existing seed+rank streams. Earlier runs seeded only inside the trainer, after constructing random projections/proprio. Consequently those historical checkpoints cannot be claimed to have bit-identical random initialization. For a strict new experiment, rerun the baseline with `scripts/libero/train_action.sh`; its shared parameters match the two new methods at initialization.
 
 Method-specific differences are intentional and explicit, not hidden optimizer/data changes. The original FM loss also has its scheduler timestep weight; the two new objectives use uniform MSE as described below:
 
@@ -33,7 +33,9 @@ This is the [MeanFlow paper's core objective](https://arxiv.org/html/2505.13447v
 
 The older `configs/meanflow/libero_mf.yaml` remains an **Action30k continuation** experiment. Do not use it for this fresh-init comparison.
 
-## Production: Qizhi 2 nodes × 8 H200
+## Production: automatic GPU count (example: Qizhi 2 × 8 H200)
+
+Global batch is fixed at 256 and accumulation at 1. The launcher reads PET_* allocation variables or counts visible GPUs locally; batch per GPU is 256 / total GPUs. Counts that cannot divide 256 fail early.
 
 Configure a PyTorch distributed job with two 8-H200 instances. Run this same command on both roles; PET variables determine rank and rendezvous. No hand-written IP or per-rank command is needed.
 
@@ -45,8 +47,8 @@ set -euo pipefail
 cd /inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2
 source scripts/libero/activate_env.sh
 export WANDB_PROJECT=VPP2-LIBERO
-export RUN_NAME="libero-meanflow-16gpu-b16-${TRAIN_JOB_ID:?}-round${RUNNING_ROUND:-0}"
-bash scripts/libero/train_meanflow_16h200.sh
+export RUN_NAME="libero-meanflow-${TRAIN_JOB_ID:?}-round${RUNNING_ROUND:-0}"
+bash scripts/libero/train_meanflow.sh
 '
 ```
 
@@ -58,8 +60,8 @@ set -euo pipefail
 cd /inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2
 source scripts/libero/activate_env.sh
 export WANDB_PROJECT=VPP2-LIBERO
-export RUN_NAME="libero-direct-action-16gpu-b16-${TRAIN_JOB_ID:?}-round${RUNNING_ROUND:-0}"
-bash scripts/libero/train_direct_action_16h200.sh
+export RUN_NAME="libero-direct-action-${TRAIN_JOB_ID:?}-round${RUNNING_ROUND:-0}"
+bash scripts/libero/train_direct_action.sh
 '
 ```
 

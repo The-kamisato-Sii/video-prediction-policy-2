@@ -34,7 +34,7 @@ def test_shared_recipe(method):
 @pytest.mark.parametrize('rank', ['0','1'])
 def test_launcher_from_unrelated_cwd(tmp_path, method, rank):
     repo = Path(__file__).resolve().parents[1]
-    result = subprocess.run(['bash',str(repo/f'scripts/libero/train_{method}_16h200.sh'),'--dry-run'],cwd=tmp_path,
+    result = subprocess.run(['bash',str(repo/f'scripts/libero/train_{method}.sh'),'--dry-run'],cwd=tmp_path,
         env=dict(os.environ,VPP2_TRAIN_MODULE='invalid.probe',PYTHON_BIN=sys.executable,PET_NNODES='2',PET_NPROC_PER_NODE='8',PET_NODE_RANK=rank,PET_MASTER_ADDR='10.1.1.1'),
         capture_output=True,text=True,check=True)
     report=json.loads(result.stdout)

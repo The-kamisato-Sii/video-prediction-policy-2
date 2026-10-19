@@ -66,7 +66,7 @@ global 256，8 步验证峰值 reserved **87.23 GiB**。Video 完整 hash 前后
 **LIBERO 16×H200 启动准备：** 2 个节点，每节点 8 卡，每卡 batch 16、累积 1，
 global batch 256；按用户要求切换为 ZeRO-1，其余训练配置沿用官方 LIBERO YAML，
 每 5k 步保存，启用离线 W&B。
-入口为 `bash scripts/libero/train_16h200.sh`，每个节点各执行一次。
+入口为 `bash scripts/libero/train_action.sh`，每个节点各执行一次。
 完整 `cd` / `source` / `conda activate`、启智变量及手动主/工作节点命令见
 **[LIBERO 16 卡与离线 W&B](docs/libero_16h200.md)**。此前 16 卡 ZeRO-2 已跑通；
 ZeRO-1 的完整 16 卡训练吞吐尚未实测。

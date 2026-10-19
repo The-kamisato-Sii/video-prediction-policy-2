@@ -9,3 +9,5 @@ Historical benchmark recipes, retained for reproducibility only:
 These resolve the repository root from their own paths. Source `../libero/activate_env.sh` first. Their shared model/data defaults follow the current code; reproduce historical measurements using the corresponding Git revision.
 
 New runs should use `../libero/train_action.sh` (8 GPUs) or the three production 16-GPU entries in `../libero/`. Moving these files does not change the queued production commands.
+
+Fixed-topology `*_16h200.sh` wrappers are also archived. Their shared dependencies follow current code; use a historical Git revision for exact historical reproduction. Current production entries have no GPU-count suffix and compute batch automatically.

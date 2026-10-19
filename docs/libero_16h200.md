@@ -1,6 +1,6 @@
 # LIBERO：启智 16×H200、单卡 16、离线 W&B
 
-入口：`scripts/libero/train_16h200.sh`。需要 **2 个 GPU 节点，每节点 8 张 H200**；
+入口：`scripts/libero/train_action.sh`。需要 **2 个 GPU 节点，每节点 8 张 H200**；
 两个节点都挂载同一个 `/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037`。
 在每个节点各启动一次脚本。主角色也必须有 8 张 GPU，不能用无 GPU 的协调节点代替。
 
@@ -71,7 +71,7 @@ export WANDB_PROJECT=VPP2-LIBERO
 export WANDB_NAME="$RUN_NAME"
 export WANDB_MODE=offline
 
-bash scripts/libero/train_16h200.sh \
+bash scripts/libero/train_action.sh \
   max_steps=30000 learning_rate=1e-4 warmup_steps=500 \
   save_every=5000 log_every=10 2>&1
 '
@@ -98,7 +98,7 @@ bash scripts/libero/train_16h200.sh \
 export MASTER_ADDR=主节点内网IP
 export MASTER_PORT=29616
 export NODE_RANK=0
-bash scripts/libero/train_16h200.sh
+bash scripts/libero/train_action.sh
 ```
 
 工作节点（rank 1）：
@@ -107,11 +107,11 @@ bash scripts/libero/train_16h200.sh
 export MASTER_ADDR=与主节点相同的内网IP
 export MASTER_PORT=29616
 export NODE_RANK=1
-bash scripts/libero/train_16h200.sh
+bash scripts/libero/train_action.sh
 ```
 
 手动启动时两端都需要保持命令运行，例如各自在 tmux 中执行。只启动一端会等待另一端。
-可先把最后一行换为 `bash scripts/libero/train_16h200.sh --dry-run` 检查配置，
+可先把最后一行换为 `bash scripts/libero/train_action.sh --dry-run` 检查配置，
 应显示 `global_batch: 256` 和 `max_steps: 30000`；dry-run 不验证 NCCL 连通性。
 
 ## 日志、权重与离线 W&B

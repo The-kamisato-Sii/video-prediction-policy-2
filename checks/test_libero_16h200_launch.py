@@ -31,7 +31,7 @@ def test_two_node_recipe_preserves_official_training(tmp_path, rank, platform_pr
     env[platform_prefix + "NNODES"] = "2"
     env[platform_prefix + "NPROC_PER_NODE"] = "8"
     result = subprocess.run(
-        ["bash", "scripts/libero/train_16h200.sh", "--dry-run"],
+        ["bash", "scripts/libero/train_action.sh", "--dry-run"],
         env=env, text=True, capture_output=True, check=True,
     )
     captured = json.loads(result.stdout)
@@ -68,8 +68,8 @@ def test_two_node_recipe_preserves_official_training(tmp_path, rank, platform_pr
 @pytest.mark.parametrize("rank,addr", [("2", "10.0.0.1"), ("0", "127.0.0.1")])
 def test_reject_invalid_node_layout(rank, addr):
     result = subprocess.run(
-        ["bash", "scripts/libero/train_16h200.sh", "--dry-run"],
-        env=dict(os.environ, NODE_RANK=rank, MASTER_ADDR=addr),
+        ["bash", "scripts/libero/train_action.sh", "--dry-run"],
+        env=dict(os.environ, NNODES="2", NPROC_PER_NODE="8", NODE_RANK=rank, MASTER_ADDR=addr),
         text=True, capture_output=True,
     )
     assert result.returncode == 2

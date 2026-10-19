@@ -1,14 +1,13 @@
 # LIBERO production launchers
 
-Source `activate_env.sh` before training. All Action recipes default to first-frame decoding, uint8 decoding without redundant conversions, four workers per GPU, ZeRO1, and global batch 256.
+Source `activate_env.sh`, then run one entry on every node:
 
-- `train_16h200.sh`: FM baseline, two nodes × eight GPUs, batch 16 per GPU, accumulation 1.
-- `train_meanflow_16h200.sh`: MeanFlow, same 16-GPU layout.
-- `train_direct_action_16h200.sh`: direct action MSE, same 16-GPU layout.
-- `train_action.sh`: confirmed single-node FM recipe, eight GPUs, batch 32 per GPU, accumulation 1.
+- `train_action.sh`: Flow Matching baseline.
+- `train_meanflow.sh`: MeanFlow.
+- `train_direct_action.sh`: direct action MSE.
 
-`train_baseline.sh` is the shared baseline path/config launcher; `train_one_step.sh` is the shared one-step launcher. Keep these dependencies here. Data preparation, Video post-training, evaluation and environment utilities are also retained.
+All entries use ZeRO1, first-frame/uint8 decoding, four workers per GPU, global batch 256 and gradient accumulation 1. `topology.sh` reads Qizhi PET_* allocation variables (or explicit NNODES/NPROC_PER_NODE); outside the platform it counts visible GPUs with PyTorch and defaults to one node. Local visible GPU count is checked again before training. Each GPU gets 256 / total GPU count samples: 8 GPUs → 32, 16 → 16, 32 → 8. Non-divisors of 256 and batch CLI overrides fail before training. Batch is not reduced automatically on OOM.
 
-Historical ZeRO2 and first-frame comparison scripts are archived in `../libero_debug/`. Do not use them for new production runs. Commands for the 16-GPU experiments are in `../../docs/libero_one_step.md`.
+For manual multi-node runs set NNODES, NODE_RANK and MASTER_ADDR on each node. Qizhi supplies these through PET_*. `--dry-run` validates the resolved recipe without starting training.
 
-Production launchers accept `--dry-run` and OmegaConf overrides. Keep run-specific probes and logs under ignored `runs/`. Replace running scripts atomically; production entry points preserve exit codes and hold per-node locks.
+`train_baseline.sh`, `train_one_step.sh` and `topology.sh` are shared dependencies. Preparation, Video post-training and evaluation tools remain here; the automatic batch contract applies to the three Action training methods. Historical fixed-topology/debug launchers are in `../libero_debug/`. Keep run-specific logs under ignored `runs/`.

@@ -3,7 +3,7 @@
 set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$repo_root"
-export NPROC_PER_NODE="${NPROC_PER_NODE:-8}"
+source "$repo_root/scripts/libero/topology.sh" "$@"
 export VPP2_TORCH_LOAD_MMAP=1
 export VPP2_VIDEO_DECODE_UINT8="${VPP2_VIDEO_DECODE_UINT8:-1}"
 export OMP_NUM_THREADS="${OMP_NUM_THREADS:-2}"
