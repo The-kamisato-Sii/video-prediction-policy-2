@@ -15,7 +15,10 @@ meanflow:
   interval:
     source: shifted_uniform
     diagonal_probability: 0.5
-  loss_weighting: uniform
+  loss_weighting: adaptive
+  adaptive_weighting:
+    power: 0.5
+    c: 0.001
   derivative_backend: jvp
   auxiliary_geometry: false
 inference:

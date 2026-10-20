@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 from omegaconf import OmegaConf
+from .loss_config import loss_settings
 
 
 def load_config(path, overrides=()):
@@ -23,16 +24,23 @@ def load_config(path, overrides=()):
 
     cfg = OmegaConf.merge(read(path), OmegaConf.from_dotlist(overrides))
     m = cfg.meanflow
+    settings = loss_settings(m)
+    m.loss_weighting = settings["loss_weighting"]
+    m.adaptive_weighting = settings["adaptive_weighting"]
+    if m.loss_weighting == "adaptive" and not (
+        cfg.benchmark == "libero" and m.objective == "data_meanflow"
+        and m.student_init.format == "baseline_init"
+    ):
+        raise ValueError("Adaptive weighting requires LIBERO data_meanflow baseline_init")
     if cfg.benchmark not in {"robodojo", "libero"}:
         raise ValueError("Unknown benchmark")
     if m.objective not in {"teacher_trajectory", "data_meanflow", "kmf", "direct_action"}:
         raise ValueError("Unsupported objective; hybrid must be a separate explicit experiment")
     if (
         m.time_convention != "clean0_noise1"
-        or m.loss_weighting != "uniform"
         or m.auxiliary_geometry
     ):
-        raise ValueError("Only clean0/noise1 uniform objectives without geometry are implemented")
+        raise ValueError("Only clean0/noise1 objectives without geometry are implemented")
     if not m.preserve_baseline_trainability:
         raise ValueError("A frozen-condition variant needs its own experiment implementation")
     if m.objective == "teacher_trajectory":
@@ -116,6 +124,7 @@ def main():
         action_nfe=1,
         derivative_backend=cfg.meanflow.derivative_backend,
         student_init=OmegaConf.to_container(cfg.meanflow.student_init, resolve=True),
+        **loss_settings(cfg.meanflow),
     )
     print(json.dumps(summary, indent=2), flush=True)
     if args.dry_run:

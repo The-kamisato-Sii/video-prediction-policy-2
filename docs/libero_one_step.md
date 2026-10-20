@@ -24,9 +24,9 @@ All new LIBERO Action runs use first-frame decoding, uint8 decoding without a fl
 
 Seed42 is now set **before** model construction, identically across ranks; training then uses the existing seed+rank streams. Earlier runs seeded only inside the trainer, after constructing random projections/proprio. Consequently those historical checkpoints cannot be claimed to have bit-identical random initialization. For a strict new experiment, rerun the baseline with `scripts/libero/train_action.sh`; its shared parameters match the two new methods at initialization.
 
-Method-specific differences are intentional and explicit, not hidden optimizer/data changes. The original FM loss also has its scheduler timestep weight; the two new objectives use uniform MSE as described below:
+Method-specific differences are intentional and explicit, not hidden optimizer/data changes. The original FM loss also has its scheduler timestep weight; Direct Action retains uniform MSE; fresh LIBERO MeanFlow now uses the adaptive weighting described below:
 
-- **MeanFlow:** the original paper's Eq.(9),(11), `z=(1-t)*action+t*noise`, `v=noise-action`, target `stop_gradient(v-(t-r)*JVP(u,(v,0,1)))`. Hold condition and `r` fixed in the derivative. JVP uses forward AD, not finite differences or second-order backpropagation. Two shift5 uniform times are sorted, with 50% diagonal samples. Use uniform squared error with the baseline's per-sample padding reduction; no teacher, distillation, CFG, adaptive loss weighting, or geometry. Add a zero-output endpoint-time embedding; shared parameters are untouched. Inference is `noise-u(noise,0,1)`.
+- **MeanFlow:** the original paper's Eq.(9),(11), `z=(1-t)*action+t*noise`, `v=noise-action`, target `stop_gradient(v-(t-r)*JVP(u,(v,0,1)))`. Hold condition and `r` fixed in the derivative. JVP uses forward AD, not finite differences or second-order backpropagation. Two shift5 uniform times are sorted, with 50% diagonal samples. New runs use detached per-sample adaptive weights `(valid_element_MSE + 0.001)^(-0.5)`, retaining the baseline padding and batch reduction. Historical uniform runs remain uniform; use `meanflow.loss_weighting=uniform` to reproduce that loss. No teacher, distillation, CFG or geometry. Add a zero-output endpoint-time embedding; shared parameters are untouched. Inference is `noise-u(noise,0,1)`.
 - **Direct Action MSE:** fixed zero action-query tokens and timestep1000; predict the clean normalized action directly. MSE uses the same padding mask and per-sample reduction as baseline. Inference returns that prediction directly, without subtracting it from noise or applying an ODE update. No extra endpoint embedding.
 
 This is the [MeanFlow paper's core objective](https://arxiv.org/html/2505.13447v1), adapted to the shared VPP2 LIBERO recipe, rather than a claim to reproduce all ImageNet hyperparameters. Training compute per update is not equal: MeanFlow adds a JVP. Compare task success / action errors, not raw losses across different objectives.
@@ -47,7 +47,7 @@ set -euo pipefail
 cd /inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2
 source scripts/libero/activate_env.sh
 export WANDB_PROJECT=VPP2-LIBERO
-export RUN_NAME="libero-meanflow-${TRAIN_JOB_ID:?}-round${RUNNING_ROUND:-0}"
+export RUN_NAME="libero-mf-adaptive-p05-${TRAIN_JOB_ID:?}-round${RUNNING_ROUND:-0}"
 bash scripts/libero/train_meanflow.sh
 '
 ```
@@ -186,3 +186,37 @@ MODE=bf16 # 改为 fp32_action 测试 FP32
   --mode "$MODE" --steps 10 --batch-size 16 \
   --output-dir "runs/libero_debug/full-step-retest-$MODE"
 ```
+
+
+## Adaptive MeanFlow default (2026-10-20)
+
+New `scripts/libero/train_meanflow.sh` runs default to `loss_weighting=adaptive`,
+`adaptive_weighting.power=0.5`, `adaptive_weighting.c=0.001`. Explicit `uniform`
+reproduces the historical loss. Missing fields in old resolved configurations and
+checkpoint metadata mean uniform; both compact weight loading and full training-state
+resume reject a silent change of mode or adaptive parameters.
+
+The detached per-sample weighting formula agrees with the official
+[JAX implementation](https://github.com/Gsunshine/meanflow/blob/main/meanflow.py#L216-L227)
+and the author's [PyTorch implementation](https://github.com/Gsunshine/py-meanflow/blob/main/meanflow/models/meanflow.py#L52-L60).
+There are intentional differences from the ImageNet recipe: this LIBERO experiment
+uses valid-action-element **mean** error and p=0.5,c=0.001; the official JAX code uses
+per-image **sum** error and defaults to p=1,c=0.01. Target and weight are detached,
+residual/reduction/weight calculations use FP32, while the existing BF16 network/JVP
+execution is preserved. No weight renormalization/clipping or scheduler loss weight
+is introduced. The existing terminal-token mask and batch denominator are retained.
+
+`train/mf/raw_mse`, `train/mf/weighted_mse`, diagonal/off-diagonal raw MSE, weight mean/max,
+group counts and correction RMS are logged to offline W&B. These statistics use globally
+summed valid-sample counts; they can differ from the training loss denominator when
+fully padded samples occur. A group with count zero has no error estimate. Rank-zero-only
+evaluation disables training collectives. Lower weighted loss alone is not convergence evidence.
+
+Validation artifacts and run status are recorded in
+`docs/validation/libero_adaptive_loss.json`. The test suite covers formula/gradient
+agreement, p=0 equivalence, padding/all-padding, two-rank reduction with empty groups,
+rank-zero-only real-model evaluation, default/invalid configurations, compact metadata,
+and full-state loss compatibility guards. The separate bounded real-data test uses
+`scripts/libero_debug/adaptive_smoke.py`; its scheduler remains configured for 30000
+steps while only the smoke loop is limited. Formal launch uses the ordinary production
+script with no diagnostic stop limit.

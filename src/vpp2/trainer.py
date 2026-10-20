@@ -696,6 +696,9 @@ class JointTrainer:
             "epoch": int(self.epoch),
             "batch_in_epoch": int(self.batch_in_epoch),
         }
+        model = self.accelerator.unwrap_model(self.model)
+        if hasattr(model, "meanflow_config"):
+            payload["meanflow_config"] = model.meanflow_config
         with open(state_file, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=True, indent=2)
 
@@ -824,6 +827,12 @@ class JointTrainer:
         self.preflight_finalized = True
 
     def load_training_state(self, state_dir: str):
+        model = self.accelerator.unwrap_model(self.model)
+        if hasattr(model, "meanflow_config"):
+            from .meanflow.loss_config import validate_loss_resume
+            metadata = Path(state_dir) / "trainer_state.json"
+            saved = json.loads(metadata.read_text()) if metadata.exists() else {}
+            validate_loss_resume(model.meanflow_config, saved.get("meanflow_config", {}))
         self.accelerator.load_state(input_dir=state_dir)
         state_file = Path(state_dir) / "trainer_state.json"
         if state_file.exists():

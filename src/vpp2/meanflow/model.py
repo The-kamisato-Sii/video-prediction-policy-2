@@ -19,6 +19,7 @@ from .objectives import (
     valid_elements,
 )
 from .teacher import rollout
+from .loss_config import loss_settings, validate_loss_resume
 
 
 def prepare_condition(model, inputs, noise_video, *, joint=False):
@@ -96,6 +97,7 @@ def derivative_mode(model):
 class MeanFlowMixin:
     def configure_meanflow(self, config, provenance, teacher=None):
         self.meanflow_config = dict(config)
+        self.meanflow_config.update(loss_settings(config))
         self.meanflow_provenance = provenance
         self.action_sampler = "direct_action" if config["objective"] == "direct_action" else "meanflow"
         if self.action_sampler == "meanflow":
@@ -228,6 +230,12 @@ class MeanFlowMixin:
                 gamma=-0.5 + progress,
                 alpha=cfg.get("generator_alpha", 0.1),
                 baseline_reduction=cfg.get("student_init", {}).get("format") == "baseline_init",
+                loss_weighting=cfg.get("loss_weighting", "uniform"),
+                adaptive_power=cfg.get("adaptive_weighting", {}).get("power", 0.5),
+                adaptive_c=cfg.get("adaptive_weighting", {}).get("c", 0.001),
+                # LIBERO evaluation calls training_loss only on rank zero.
+                # Training collectives must never run in this evaluation path.
+                distributed=self.action_expert.training,
             )
             metrics["teacher_nfe"] = 0
         video_loss = action_loss.new_zeros(())
@@ -291,6 +299,9 @@ class MeanFlowMixin:
 
     def load_checkpoint(self, path, optimizer=None, **kwargs):
         payload = torch.load(path, map_location="cpu", mmap=True, weights_only=True)
+        validate_loss_resume(
+            self.meanflow_config, payload.get("meanflow", {}).get("config", {})
+        )
         if payload.get("meanflow", {}).get("objective") != self.meanflow_config["objective"]:
             raise ValueError(
                 "Resume objective differs; use explicit FM initialization for new experiments"

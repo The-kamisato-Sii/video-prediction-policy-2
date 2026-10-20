@@ -92,6 +92,8 @@ def main():
         iterator=iter(loader)
         report['setup_seconds']=time.perf_counter()-start
         mf=model.meanflow_config
+        report['loss_weighting']=mf.get('loss_weighting','uniform')
+        report['adaptive_weighting']=mf.get('adaptive_weighting',{'power':.5,'c':.001})
         stage('training')
         for step in range(args.steps):
             # Identical stochastic inputs in corresponding steps, independent of dtype dispatch.
@@ -123,7 +125,10 @@ def main():
                                                   z[rows],lo[rows],hi[rows],v[rows],mf['derivative_backend'])
             with torch.autocast('cuda',enabled=False):
                 loss,metrics=data_loss(predict,derivative,clean,noise,r,t,pad,objective=mf['objective'],
-                    baseline_reduction=mf.get('student_init',{}).get('format')=='baseline_init')
+                    baseline_reduction=mf.get('student_init',{}).get('format')=='baseline_init',
+                    loss_weighting=mf.get('loss_weighting','uniform'),
+                    adaptive_power=mf.get('adaptive_weighting',{}).get('power',.5),
+                    adaptive_c=mf.get('adaptive_weighting',{}).get('c',.001))
                 loss=loss*model.loss_lambda_action
             mark('action_forward_and_jvp_seconds')
             loss.backward();mark('backward_seconds')

@@ -50,7 +50,9 @@ def test_frozen_video_live_action_and_proprio(kind):
     model.build_inputs=types.MethodType(build,model)
     before={k:v.clone() for k,v in model.state_dict().items()}
     model.configure_meanflow(dict(objective=kind,derivative_backend='jvp',budget_steps=10,
-        student_init={'format':'baseline_init'},interval={'diagonal_probability':0.0}),{})
+        student_init={'format':'baseline_init'},interval={'diagonal_probability':0.0},
+        loss_weighting='adaptive' if kind=='data_meanflow' else 'uniform',
+        adaptive_weighting={'power':0.5,'c':0.001}),{})
     for k,v in before.items():
         torch.testing.assert_close(v,model.state_dict()[k],rtol=0,atol=0)
     model.requires_grad_(False)

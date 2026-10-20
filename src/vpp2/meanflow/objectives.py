@@ -3,6 +3,43 @@
 import torch
 from torch import nn
 
+from .loss_config import loss_settings
+
+
+@torch.no_grad()
+def loss_diagnostics(per_sample, weighted, weights, has_valid, gap, correction, is_pad,
+                     *, distributed=True):
+    """Global valid-sample statistics; every rank enters the same two collectives."""
+    diagonal = has_valid & (gap == 0)
+    offdiagonal = has_valid & (gap > 0)
+    valid = valid_elements(correction, is_pad)
+    sums = torch.stack([
+        torch.where(has_valid, per_sample, 0).sum(),
+        torch.where(has_valid, weighted, 0).sum(),
+        torch.where(diagonal, per_sample, 0).sum(),
+        torch.where(offdiagonal, per_sample, 0).sum(),
+        torch.where(has_valid, weights, 0).sum(),
+        has_valid.sum(), diagonal.sum(), offdiagonal.sum(),
+        torch.where(valid, correction.float().square(), 0).sum(), valid.sum(),
+    ]).float()
+    maximum = torch.where(has_valid, weights, 0).max()
+    if distributed and torch.distributed.is_available() and torch.distributed.is_initialized():
+        torch.distributed.all_reduce(sums)
+        torch.distributed.all_reduce(maximum, op=torch.distributed.ReduceOp.MAX)
+    count, diag_count, off_count = sums[5:8]
+    return {
+        "mf/raw_mse": sums[0] / count.clamp_min(1),
+        "mf/weighted_mse": sums[1] / count.clamp_min(1),
+        "mf/raw_mse_diagonal": sums[2] / diag_count.clamp_min(1),
+        "mf/raw_mse_offdiagonal": sums[3] / off_count.clamp_min(1),
+        "mf/weight_mean": sums[4] / count.clamp_min(1),
+        "mf/weight_max": maximum,
+        "mf/valid_samples": count,
+        "mf/diagonal_samples": diag_count,
+        "mf/offdiagonal_samples": off_count,
+        "mf/correction_rms": (sums[8] / sums[9].clamp_min(1)).sqrt(),
+    }
+
 
 def expand_time(t, x):
     return t.reshape(-1, *([1] * (x.ndim - 1)))
@@ -131,8 +168,16 @@ def data_loss(
     gamma=0.0,
     alpha=0.1,
     baseline_reduction=False,
+    loss_weighting="uniform",
+    adaptive_power=0.5,
+    adaptive_c=0.001,
+    distributed=True,
 ):
     """Separate live policy prediction from detached JVP values and generator graph."""
+    loss_settings(dict(loss_weighting=loss_weighting,
+                       adaptive_weighting=dict(power=adaptive_power, c=adaptive_c)))
+    if loss_weighting == "adaptive" and objective != "data_meanflow":
+        raise ValueError("Adaptive weighting is only supported for data_meanflow")
     v = noise.float() - clean.float()
     gap = t - r
     z = (clean.float() + expand_time(t, clean) * v).to(clean)
@@ -171,11 +216,15 @@ def data_loss(
             )
             omega = 1 + gamma * torch.exp(-1 / (norm + 1e-6))
             residual, has_valid = masked_per_sample(pred.detach(), target, is_pad)
-            gen_loss = reduce_valid(omega * residual, active & has_valid)
+            gen_loss = reduce_valid(omega * residual, active & has_valid, distributed=distributed)
     else:
         raise ValueError(f"Unsupported data objective: {objective}")
-    policy_loss = (masked_per_sample(pred, target.detach(), is_pad)[0].mean()
-                   if baseline_reduction else masked_mse(pred, target.detach(), is_pad))
+    per_sample, has_valid = masked_per_sample(pred, target.detach(), is_pad)
+    weights = ((per_sample.detach() + adaptive_c).pow(-adaptive_power)
+               if loss_weighting == "adaptive" else torch.ones_like(per_sample))
+    weighted = torch.where(has_valid, weights * per_sample, 0.0)
+    policy_loss = (weighted.mean() if baseline_reduction
+                   else reduce_valid(weighted, has_valid, distributed=distributed))
     effective_d = d if objective == "data_meanflow" else split.detach()
     correction = expand_time(gap, v) * effective_d
     metrics = dict(
@@ -187,6 +236,11 @@ def data_loss(
         lambda_p10=torch.quantile(lam.detach(), 0.1),
         lambda_p90=torch.quantile(lam.detach(), 0.9),
     )
+    if objective == "data_meanflow":
+        metrics.update(loss_diagnostics(
+            per_sample, weighted, weights, has_valid, gap, correction, is_pad,
+            distributed=distributed,
+        ))
     for label, rows in [
         ("low", t < 1 / 3),
         ("mid", (t >= 1 / 3) & (t < 2 / 3)),

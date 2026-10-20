@@ -1,0 +1,155 @@
+{
+  "status": "TRAIN_EVAL_SAVE_PASS_FULL_RESUME_IN_PROGRESS",
+  "tests": {
+    "passed": 39,
+    "seconds": 32.88,
+    "log": "runs/libero_adaptive_20261020/tests-remote.log",
+    "unique_tests_passed": 40,
+    "focused_final_tests": 9,
+    "focused_seconds": 8.18,
+    "focused_log": "runs/libero_adaptive_20261020/adaptive-final-tests.log"
+  },
+  "official_sources": [
+    "https://github.com/Gsunshine/meanflow/blob/main/meanflow.py#L216-L227",
+    "https://github.com/Gsunshine/py-meanflow/blob/main/meanflow/models/meanflow.py#L52-L60"
+  ],
+  "weighting": {
+    "mode": "adaptive",
+    "power": 0.5,
+    "c": 0.001,
+    "reduction": "valid action element mean per sample; baseline batch denominator preserved",
+    "stop_gradient_target": true,
+    "stop_gradient_weight": true
+  },
+  "default_scope": "New LIBERO baseline_init data_meanflow; historical missing fields mean uniform",
+  "controlled_settings": {
+    "batch_size": 16,
+    "num_workers": 4,
+    "gradient_accumulation_steps": 1,
+    "learning_rate": 0.0001,
+    "optimizer_betas": [
+      0.9,
+      0.95
+    ],
+    "weight_decay": 0.01,
+    "max_grad_norm": 1.0,
+    "max_steps": 30000,
+    "warmup_steps": 500,
+    "lr_scheduler_type": "cosine",
+    "lr_min_ratio": 0.01,
+    "save_every": 5000,
+    "eval_every": 200,
+    "seed": 42,
+    "mixed_precision": "bf16",
+    "train_mode": "action_only",
+    "data": "unchanged"
+  },
+  "production_dry_run": {
+    "benchmark": "libero",
+    "objective": "data_meanflow",
+    "world_size": 16,
+    "global_batch": 256,
+    "micro_batch": 16,
+    "gradient_accumulation_steps": 1,
+    "num_workers": 4,
+    "learning_rate": 0.0001,
+    "max_steps": 30000,
+    "save_every": 5000,
+    "action_sampler": "meanflow",
+    "reference_global_batch": 256,
+    "train_mode": "action_only",
+    "action_nfe": 1,
+    "derivative_backend": "jvp",
+    "student_init": {
+      "format": "baseline_init",
+      "action_checkpoint": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/weights/libero/action_init.pt",
+      "video_checkpoint": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/weights/libero/video_step010000.pt"
+    },
+    "loss_weighting": "adaptive",
+    "adaptive_weighting": {
+      "power": 0.5,
+      "c": 0.001
+    }
+  },
+  "smoke": {
+    "status": "FULL_RESUME_IN_PROGRESS",
+    "world_size": 2,
+    "batch_per_gpu": 16,
+    "global_batch": 32,
+    "zero_stage": 1,
+    "schedule_steps": 30000,
+    "stop_step_first_run": 4,
+    "stop_step_resume": 6,
+    "evaluations_completed": [
+      2,
+      4
+    ],
+    "log": "runs/libero_adaptive_20261020/smoke-r2.log",
+    "first_attempt": "Stopped after step 2 eval stalled; workers started before rank-zero collective fix. Restart includes in-process bytecode API checks.",
+    "first_run": {
+      "status": "PASS",
+      "step": 4,
+      "schedule_steps": 30000,
+      "meanflow": {
+        "objective": "data_meanflow",
+        "time_convention": "clean0_noise1",
+        "preserve_baseline_trainability": true,
+        "student_init": {
+          "format": "baseline_init",
+          "action_checkpoint": "weights/libero/action_init.pt",
+          "video_checkpoint": "weights/libero/video_step010000.pt"
+        },
+        "interval": {
+          "source": "shifted_uniform",
+          "diagonal_probability": 0.5
+        },
+        "loss_weighting": "adaptive",
+        "adaptive_weighting": {
+          "power": 0.5,
+          "c": 0.001
+        },
+        "derivative_backend": "jvp",
+        "auxiliary_geometry": false,
+        "budget_steps": 30000
+      },
+      "checkpoint": {
+        "weights_path": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/runs/libero_adaptive_20261020/smoke-r2/checkpoints/weights/step_000004.pt",
+        "state_path": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/runs/libero_adaptive_20261020/smoke-r2/checkpoints/state/step_000004"
+      },
+      "world_size": 2,
+      "batch_per_gpu": 16
+    },
+    "saved_state": {
+      "global_step": 4,
+      "epoch": 0,
+      "batch_in_epoch": 4,
+      "meanflow_config": {
+        "objective": "data_meanflow",
+        "time_convention": "clean0_noise1",
+        "preserve_baseline_trainability": true,
+        "student_init": {
+          "format": "baseline_init",
+          "action_checkpoint": "weights/libero/action_init.pt",
+          "video_checkpoint": "weights/libero/video_step010000.pt"
+        },
+        "interval": {
+          "source": "shifted_uniform",
+          "diagonal_probability": 0.5
+        },
+        "loss_weighting": "adaptive",
+        "adaptive_weighting": {
+          "power": 0.5,
+          "c": 0.001
+        },
+        "derivative_backend": "jvp",
+        "auxiliary_geometry": false,
+        "budget_steps": 30000
+      }
+    },
+    "state_sizes_gib": {
+      "bf16_zero_pp_rank_0_mp_rank_00_optim_states.pt": 5.196,
+      "mp_rank_00_model_states.pt": 33.922,
+      "bf16_zero_pp_rank_1_mp_rank_00_optim_states.pt": 5.196
+    }
+  }
+}
