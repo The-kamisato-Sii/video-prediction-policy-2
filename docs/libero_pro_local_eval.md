@@ -8,6 +8,8 @@ source scripts/libero/activate_pro_env.sh
 
 The Conda prefix is `../miniconda/envs/vpp2-libero-pro` (Python 3.10). It has its own simulator dependencies and reuses the existing `vpp2` environment's model packages via `vpp2_model_dependencies.pth`. Do not remove that source environment. Install simulator changes only into the PRO prefix. Current pins include MuJoCo 3.3.2, BDDL 1.0.1, future 1.0.0, NumPy 1.26.4, setuptools 81.0.0, and fsspec 2025.3.0.
 
+The H200 notebook image lacks the GLVND loader (`libEGL.so.1`, `libOpenGL.so.0`, and `libGLdispatch.so.0`) despite providing the NVIDIA vendor EGL driver. Normally install `libegl1 libopengl0` through the system package manager. This workspace also provides these user-space loaders under `../tools/libero-pro-glvnd/lib`, copied from the Ubuntu 22.04 host with package versions and copyright saved alongside them. Activation adds that directory to `LD_LIBRARY_PATH` when present; it does not replace the container's NVIDIA driver. Because this image cannot reach the Ubuntu HTTP package mirror, the shared loaders are used here. `opencv-python-headless==4.11.0.86` is installed inside the PRO prefix to avoid inheriting the training environment's desktop OpenCV and its `libGL.so.1` dependency.
+
 `third_party/libero_pro_runtime/` holds rpent-liberopro 0.2.0, rpent-libero 0.2.0 and robosuite 1.5.2 installed with `--no-deps --target`. The worker adds this runtime to its own PYTHONPATH. Assets come from `third_party/LIBERO-PRO-assets/libero/libero/assets/`. Task and init metadata are pinned to `c86fc3b8293185a6f373677018ff3e37f8391602` under `third_party/libero_pro_metadata/`; `prepare_pro.sh` supplies these to the isolated runtime. Local Hugging Face `.cache` directories are excluded when locating metadata trees.
 
 The local Action-30k checkpoint is:
@@ -43,4 +45,30 @@ Every worker loads an independent complete policy. A file barrier starts timing 
 
 Artifacts are written to `runs/libero_pro_2gpu/${TRAIN_JOB_ID}-round${RUNNING_ROUND}/`. Each phase has per-GPU logs, manifests, episode JSONs/videos and profiles. The final `summary.json` reports speedup and a rough public800 duration extrapolated from the eight-episode two-GPU sample. This small task0 sample is not a full-benchmark success rate and does not establish a precise full-run duration.
 
-Queued task: `job-0d569601-f443-48ff-bb08-8e6503da4388`, name `vpp2-libero-pro-2h200-check-1020`, workspace `具身大模型专项空间`, 1 instance × 2 H200, 40 CPU, 400 GiB RAM, 128 GiB shared memory, priority10. Actual rollout/memory results remain pending allocation.
+The earlier queued task `job-0d569601-f443-48ff-bb08-8e6503da4388` is stopped. The active check uses the user's `libero-pro` notebook (`2e01c813-df25-4fdb-8333-1dfe823cf8fb`), two H200 GPUs, 40 CPU and 400 GiB RAM in `具身大模型专项空间`.
+
+To run only the parallel diagnostic, use a fresh run name:
+
+```bash
+TRAIN_JOB_ID=pro-parallel-check bash scripts/libero_debug/benchmark_pro.sh --phase two_gpu
+```
+
+`--phase single_gpu` selects the serial diagnostic; omitting `--phase` runs both and compares their speed. An isolated phase's `summary.json` contains its own measurements, without a speedup comparison. Initial notebook attempts exposed missing EGL and desktop OpenCV libraries before any model rollout; those failed directories are retained separately from subsequent runs.
+
+### Measured two-H200 result (2026-10-20)
+
+Run directory: `runs/libero_pro_2gpu/notebook-2e01c813-headless-20261020-round0/`. Both workers completed all four assigned episodes with `status: PASS`; eight episodes total, independent full policies, original horizons and 10-NFE inference. No CPU offload was used. Simulator preflight and `pip check` passed after the loader/headless OpenCV fixes.
+
+| Measurement | GPU0 | GPU1 |
+|---|---:|---:|
+| Load/setup seconds | 931.75 | 931.52 |
+| Resident PyTorch GiB | 44.50 | 44.50 |
+| Rollout peak allocated GiB | 46.59 | 46.59 |
+| Rollout peak reserved GiB | 46.64 | 46.64 |
+| NVIDIA-SMI sampled peak MiB | 49154 | 49154 |
+| Spatial episode seconds (includes first-use overhead) | 106.99 | 107.35 |
+| Object episode seconds | 17.68 | 13.52 |
+| Goal episode seconds | 29.05 | 29.36 |
+| Long-horizon episode seconds | 52.78 | 43.82 |
+
+The shared barrier-to-last-worker rollout wall time was 208.14 seconds. Load/setup is separate; setup plus rollout was about 19 minutes. Six episodes after the two first-use episodes averaged 31.04 seconds. A two-GPU public800 extrapolation is about 3.45 hours from that warm average, or 5.78 hours from the full eight-episode sample including first-use overhead, plus about 16 minutes of startup for this measured launch. These are timing estimates from task0 of each cell, not a full run or a formal success-rate result. The serial phase was not run successfully in this check, so no measured single-versus-two-GPU speedup is claimed.

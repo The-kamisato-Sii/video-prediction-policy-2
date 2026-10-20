@@ -75,18 +75,25 @@ def run_phase(cfg,root,gpus):
 
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--output-dir',required=True);args=p.parse_args()
+    p=argparse.ArgumentParser();p.add_argument('--output-dir',required=True)
+    p.add_argument('--phase',choices=['all','single_gpu','two_gpu'],default='all')
+    args=p.parse_args()
     os.chdir(REPO)
     root=Path(args.output_dir).resolve();root.mkdir(parents=True,exist_ok=False)
     cfg=OmegaConf.load(REPO/'configs/libero/eval_pro.yaml')
     run=REPO/'runs/libero/libero-action-16gpu-b16-job-e252bb1f-b0fd-499c-bf63-fcc4f26d16c8-round0'
     cfg.action_checkpoint=str(run/'checkpoints/weights/step_030000.pt');cfg.training_config=str(run/'config.yaml')
     cfg.runtime_config_dir=str(root/'runtime');cfg.benchmark_root=str((REPO/cfg.benchmark_root).resolve())
-    check_idle_gpus([0,1]);validate_checkpoint(cfg)
+    check_idle_gpus([0] if args.phase=='single_gpu' else [0,1]);validate_checkpoint(cfg)
     (root/'contract.json').write_text(json.dumps(dict(diagnostic_only=True,action_step=30000,video_step=10000,action_nfe=10,trials_per_case=1,init_state_index=1,cases=CASES,checkpoint=cfg.action_checkpoint,protocol_reference='public800'),indent=2))
     monitor_log=(root/'nvidia-smi.csv').open('w')
     monitor=subprocess.Popen(['nvidia-smi','--query-gpu=timestamp,index,uuid,memory.used,utilization.gpu','--format=csv,noheader','--loop=2'],stdout=monitor_log,stderr=subprocess.STDOUT)
     try:
+        if args.phase!='all':
+            result=run_phase(cfg,root/args.phase,[0,1] if args.phase=='two_gpu' else [0])
+            (root/'summary.json').write_text(json.dumps(result,indent=2))
+            print('BENCHMARK_PHASE_PASS',args.phase,result['rollout_wall_seconds'],flush=True)
+            return
         serial=run_phase(cfg,root/'single_gpu',[0])
         parallel=run_phase(cfg,root/'two_gpu',[0,1])
         # One task per suite/axis is a small timing sample, not a success-rate estimate.

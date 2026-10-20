@@ -10,3 +10,7 @@ export PATH="$CUDA_HOME/bin:$PATH"
 export PYTHONPATH="$vpp2_pro_repo/src${PYTHONPATH:+:$PYTHONPATH}"
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
 export MUJOCO_GL=egl PYOPENGL_PLATFORM=egl PYTHONUNBUFFERED=1
+vpp2_pro_glvnd="$vpp2_pro_repo/../tools/libero-pro-glvnd/lib"
+if [[ -f "$vpp2_pro_glvnd/libEGL.so.1" ]]; then
+    export LD_LIBRARY_PATH="$vpp2_pro_glvnd${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+fi

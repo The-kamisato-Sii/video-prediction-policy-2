@@ -5,6 +5,7 @@ fsspec==2025.3.0
 mujoco==3.3.2
 bddl==1.0.1
 future==1.0.0
+opencv-python-headless==4.11.0.86
 gym==0.25.2
 easydict>=1.9
 cloudpickle>=2.1
