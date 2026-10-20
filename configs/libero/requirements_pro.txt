@@ -1,6 +1,10 @@
 # Install into the isolated PRO environment; the versioned packages use --target.
+numpy==1.26.4
+setuptools==81.0.0
+fsspec==2025.3.0
 mujoco==3.3.2
 bddl==1.0.1
+future==1.0.0
 gym==0.25.2
 easydict>=1.9
 cloudpickle>=2.1

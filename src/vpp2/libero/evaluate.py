@@ -43,8 +43,14 @@ def validate_checkpoint(cfg):
         raise ValueError("Expected compact Action 30k and standalone Video 10k")
     legacy = OmegaConf.create(action_config(action))
     validate_training_config(legacy, require_portable_target=False)
-    if not mf and not continuation and (int(legacy.batch_size) != 32 or int(legacy.max_steps) != 30000):
-        raise ValueError("Checkpoint is not the large-batch horizontal Action-30k recipe")
+    if not mf and not continuation:
+        # Microbatch depends on the training allocation (e.g. 16 x 16 or 8 x 32).
+        # It does not change the inference model or the reference global batch.
+        microbatch = int(legacy.batch_size) * int(legacy.gradient_accumulation_steps)
+        if (int(legacy.max_steps) != 30000
+                or int(legacy.reference_global_batch_size) != 256
+                or microbatch <= 0 or 256 % microbatch != 0):
+            raise ValueError("Checkpoint is not the global-batch256 horizontal Action-30k recipe")
     if action["action_expert"]["action_encoder.weight"].shape != (512, 7):
         raise ValueError("Expected LIBERO Action expert hidden512/action7")
     if action["proprio_encoder"]["weight"].shape != (4096, 8):

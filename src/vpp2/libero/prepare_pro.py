@@ -31,7 +31,9 @@ def prepare(runtime, assets, snapshot=None):
         ("init_files", "AUTHORITATIVE_INIT_REVISION"),
         ("bddl_files", "AUTHORITATIVE_BDDL_REVISION"),
     ]:
-        sources = [p for p in snapshot.rglob(directory) if p.is_dir()]
+        # snapshot_download(local_dir=...) also creates matching cache directories.
+        sources = [p for p in snapshot.rglob(directory)
+                   if p.is_dir() and ".cache" not in p.relative_to(snapshot).parts]
         if len(sources) != 1:
             raise ValueError(f"Expected exactly one {directory} tree in {snapshot}")
         # Copy authoritative metadata, including the three repaired Task BDDLs.
