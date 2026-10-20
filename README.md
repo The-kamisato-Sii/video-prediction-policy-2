@@ -61,6 +61,8 @@ global 256，8 步验证峰值 reserved **87.23 GiB**。Video 完整 hash 前后
 
 **LIBERO 单步对照：** [MeanFlow / 直接 Action MSE 的 16 卡启动指令与控制变量](docs/libero_one_step.md)。默认首帧＋uint8、每卡 4 workers；从相同 Action 初始化开始，冻结 Video-10k。
 
+**下一步实现规格（2026-10-20，文档计划）：** [LIBERO MeanFlow 自适应 loss 加权](#libero-mf-adaptive-loss)。先只增加按样本、停止梯度的 adaptive weighting；保留当前时间采样和 BF16 配方。下文包含公式、代码修改位置、配置、启动方式和验收标准；本次 README 更新没有实现训练代码。
+
 **LIBERO 数据管线优化实测：** 同机 8×H200、ZeRO1、单卡 batch 32 下，只解码首帧将平均步耗时从 14.20 秒降至约 4.77 秒；workers 4/8/16/20 吞吐相近。完整对照表及运行方法见 **[数据管线性能对照](docs/libero_loader_benchmark.md)**。
 
 **LIBERO 16×H200 启动准备：** 2 个节点，每节点 8 卡，每卡 batch 16、累积 1，
@@ -314,7 +316,115 @@ $$
 - 首轮可采用显式命名 `diagonal_probability=0.5`，其余时间对从对应 benchmark 的原 shifted sigma 分布独立采样后排序。不同论文的 logit-normal/Beta 采样列为独立 sampler 消融，避免与目标改动混淆。
 - `r=t` 时直接使用 FM target `v`，无需计算 JVP。K0/K1 使用相同 diagonal 比例；本项目首版 diagonal 样本只参与 policy loss，不参与 generator loss，generator loss 只在非 diagonal 样本上归约。这个选择须写入配置，不冒充论文默认；该批次没有非 diagonal 样本时跳过 generator 更新。
 - target 整体 stop-gradient；使用单独有梯度的 `u_pred` 前向和 `no_grad` 下的 forward-mode JVP，避免不必要的高阶参数图。不要把含 `@torch.no_grad()` 的旧 inference helper 当作可训练预测函数。
-- 先使用 uniform masked loss。adaptive weighting、CFG、dispersive 等各自作为单独开关与消融；不复制 MP1 未核对的 CFG 实现，也不把含义相反的 `flow_ratio` 变量直接搬来。
+- uniform masked loss 保留为历史对照。LIBERO fresh-init M0 的下一轮按下述规格增加 adaptive weighting，先只改变这一因素；CFG、dispersive 等仍是独立消融。不复制 MP1 未核对的 CFG 实现，也不把含义相反的 `flow_ratio` 变量直接搬来。
+
+<a id="libero-mf-adaptive-loss"></a>
+
+#### 6.1.1 当前优先实验：LIBERO MeanFlow adaptive loss weighting
+
+**状态：待实现的交接规格，非已完成代码或收敛结果。** 本节覆盖旧计划中“先用 uniform”的下一轮实验建议；历史 uniform 运行仍按原配置解释。本轮验证的问题是：在相同初始化、数据、模型、采样与优化器设置下，降低异常 MF 残差的相对梯度贡献，是否改善原始残差、一步 action 误差和闭环表现。
+
+**依据与边界。** [原始 MeanFlow §4.3 / 附录 B.2](https://arxiv.org/html/2505.13447v1#A2.SS2) 使用停止梯度的自适应权重，图像实验中 p=1 最好，p=0.5 也有竞争力。本项目先试 p=0.5、c=1e-3，再单独比较 p=1；这是适配当前按有效 action 元素取均值的起始配方，不声称复现 ImageNet 最优参数，也不保证解决发散。已有 [JVP 精度及完整训练步诊断](docs/libero_one_step.md#jvp-precision-diagnostic-2026-10-20-utc) 表明失稳 checkpoint 在 FP32 下仍有很大导数和 loss；该结果不能证明 BF16 从训练初期就没有影响。本轮保留 BF16，不同时改为 FP32。
+
+**控制变量。** 继续使用 `configs/libero/train_meanflow.yaml` 的 fresh Action 初始化、冻结 Video-10k、40 层 hidden512 Action1B、可训练 proprio、global batch 256、AdamW、LR=1e-4、warmup=500、30k cosine schedule、clip=1、原数据与 mask。推理仍为一次 `epsilon - u(epsilon, 0, 1)`。不更换 JVP 切向量，不增加 teacher/iMF/K-MF/几何 head，也不改变 Direct Action MSE 或 FM baseline。
+
+时间采样保持当前实现：两次 shift=5 采样后排序，再令 50% 样本 r=t。**不在本轮加入“对角样本独立采时间”。** 作者 [time_sampler.py](https://github.com/Gsunshine/py-meanflow/blob/main/meanflow/models/time_sampler.py) 的 v0 明确标为论文版本，采用相同的“先排序、再设对角”顺序；作者该实现的基础分布是 logit-normal，当前项目是 shifted uniform。两者基础分布不同，但排序顺序不是实现 bug。作者 v1 或独立对角采样留到后续消融。
+
+**精确 loss 定义。** 保留当前 z、v、JVP、target 的定义，仅改变最终 policy loss 的按样本权重：
+
+$$
+z_t=(1-t)a+t\epsilon,\quad v=\epsilon-a,\quad
+y=\operatorname{sg}\left[v-(t-r)\operatorname{JVP}(u;(v,0,1))\right].
+$$
+
+令 m 为已有的有效 action 元素 mask，N_i 为样本 i 的有效元素数：
+
+$$
+e_i=\frac{\sum_{h,d}m_{i,h,d}(u_{i,h,d}-y_{i,h,d})^2}{\max(N_i,1)},\quad
+w_i=\operatorname{sg}\left[(e_i+c)^{-p}\right].
+$$
+
+把原来的每样本误差 e_i 替换成 w_i e_i，再使用原来的 batch/distributed reduction。具体要求：
+
+- 按样本加权；不是每个 action 维度分别加权，也不是用整个 batch 的平均 loss 生成一个公共权重。有效元素均值的尺度必须固定，不能静默换成 sum 后仍沿用同一个 c。
+- residual、平方、有效元素归约、权重和最终 loss 运算使用 FP32；这不意味着把模型/JVP 前向改为 FP32。
+- target 和权重均停止梯度，主预测保留参数梯度；不新增高阶梯度。对角与非对角样本都使用相同加权规则。
+- 不把权重重新归一化到均值 1，不新增 weight clipping，不乘回 FM scheduler weight。这些都会产生额外配方变化。
+- 复用 `action_loss_is_pad`（保留 terminal-token 规则），不要替换成原始 `action_is_pad`。
+- 保留已有 reduction 语义：fresh LIBERO 的 `baseline_reduction=True` 对整个本地 batch 取均值，全 padding 样本贡献零；其他既有路径使用 `reduce_valid` 的全局有效样本数归约。不要在同一个实验中改变分母。全局没有有效元素时返回与预测图连接的零 loss。
+- p=0 时权重为 1，前向 loss 和反向梯度应退化成同一路径的 uniform 行为；旧配置缺省仍解释为 uniform。
+
+实现示意（复用当前 helper；不是已提交的实现）：
+
+```python
+per_sample, has_valid = masked_per_sample(pred, target.detach(), is_pad)
+if loss_weighting == "adaptive":
+    weights = (per_sample.detach() + adaptive_c).pow(-adaptive_power)
+else:
+    weights = torch.ones_like(per_sample)
+weighted = torch.where(has_valid, weights * per_sample, 0.0)
+policy_loss = (
+    weighted.mean()
+    if baseline_reduction
+    else reduce_valid(weighted, has_valid)
+)
+```
+
+这里优化的梯度为 sum_i w_i * grad(e_i)（含对应归约因子），而不是对未 detach 的 e_i/(e_i+c)^p 求导。p=1 时记录的加权 loss 数值趋于饱和，但因为权重 detach，梯度并不等于该饱和函数的完整导数。**不能以加权 loss 变小或有界作为稳定性的证据。**
+
+**让机器上的 Codex 按以下位置实施。**
+
+| 文件 | 所需修改 |
+|---|---|
+| `src/vpp2/meanflow/objectives.py` | 为 `data_loss()` 增加兼容旧调用的 weighting 参数；在已构造并 detach 的 MF target 后、batch reduction 前应用上述按样本权重。增加 raw/weighted 诊断。uniform 路径保持等价；首轮只开放 `data_meanflow`。 |
+| `src/vpp2/meanflow/model.py` | 将 `meanflow.loss_weighting` 与 `meanflow.adaptive_weighting.{power,c}` 传给 `data_loss()`；不改变条件构建、Video cache、训练 mask、JVP 或一步推理。沿用现有 config/checkpoint metadata 存储完整 loss 设置。 |
+| `src/vpp2/meanflow/cli.py` | 将“仅允许 uniform”的校验改成显式允许 uniform/adaptive；adaptive 首轮仅接受 LIBERO + data_meanflow + baseline_init。检查 power/c 有限、0<=power<=1、c>0，拒绝拼写错误和未支持组合。`--dry-run` 打印模式、power/c 和初始化来源。 |
+| `configs/libero/train_meanflow.yaml` | 保留 `loss_weighting: uniform` 作为兼容默认；新增 adaptive 参数默认值，通过下方启动 override 显式启用新实验。旧配置不含这些字段时仍可加载。 |
+| `checks/test_meanflow.py`、`checks/test_libero_one_step.py`（或新的专门测试文件） | 增加权重/梯度、mask、配置和 metadata 的针对性测试，标准见下。 |
+| `docs/libero_one_step.md` | 实现完成后补充新实验命令与实际验证结果；原有 uniform 记录标为历史配方，不能改写成 adaptive 已运行。完成后同步更新本节状态。 |
+
+新增配置字段的约定：
+
+```yaml
+meanflow:
+  loss_weighting: uniform  # 历史默认；新实验显式 override 为 adaptive
+  adaptive_weighting:
+    power: 0.5
+    c: 0.001
+```
+
+**日志要求。** `loss_policy` / `loss_action` 继续记录实际参与优化的加权 loss；同时新增 `mf/raw_mse`、`mf/weighted_mse`、`mf/raw_mse_diagonal`、`mf/raw_mse_offdiagonal`、`mf/weight_mean`、`mf/weight_max`、有效样本数和两组样本数。所有统计排除无有效元素的样本，并注明与训练 reduction 分母的区别。分布式均值用总和/计数归约；空组记录 count=0，不把它解读成零误差。各 rank 无论有没有非对角样本，都必须以相同顺序进入 collectives，避免挂起。保留 action L1、原 JVP/correction norm、preclip grad norm、时间和显存日志；建议增加有效元素上的 correction RMS，避免仅凭未归一化 norm 比较不同 batch。
+
+本轮无需每步保存大张量或运行额外 action 前向。为判定性能，使用现有一步 action 诊断，并在固定的小规模 LIBERO-PRO episode 子集上比较 checkpoint；预先固定任务、初始化、seed、评测预算，最终再运行完整协议。固定训练样本 L1 只能作拟合诊断，不能替代闭环成功率。
+
+**实现后的启动示例；当前仅文档更新时不要直接运行。** 使用新 RUN_NAME/output_dir，按现有生产入口在每个分配节点执行。首先完成下述 dry-run 和短跑，再启动正式预算：
+
+```bash
+# 从仓库根目录；环境与多节点分配方式沿用现有 LIBERO 指南。
+source scripts/libero/activate_env.sh
+export RUN_NAME="libero-mf-adaptive-p05-${TRAIN_JOB_ID:?}-round${RUNNING_ROUND:-0}"
+bash scripts/libero/train_meanflow.sh --dry-run \
+  meanflow.loss_weighting=adaptive \
+  meanflow.adaptive_weighting.power=0.5 \
+  meanflow.adaptive_weighting.c=0.001
+
+# 实现与短跑验收通过后，去掉 --dry-run：
+bash scripts/libero/train_meanflow.sh \
+  meanflow.loss_weighting=adaptive \
+  meanflow.adaptive_weighting.power=0.5 \
+  meanflow.adaptive_weighting.c=0.001
+```
+
+**实验顺序与验收。**
+
+1. 单元测试：p=0 与旧 uniform 的值/梯度一致；简单张量的梯度符合 detach 权重公式且非零；改变 padding 位置的数据不改变有效 loss/梯度；混合/全 padding batch 和 r=t 情况正常；非法配置被拒绝。
+2. 用至少两 rank 的小测试覆盖某 rank 无有效样本、某 rank 无非对角样本的情况，检查 loss/梯度归约与固定 reduction 的单进程参考一致，不挂起。验证保存配置、compact checkpoint metadata、训练恢复能保留 weighting/p/c。旧 checkpoint/config 仍以 uniform 解释；恢复时校验 loss 设置，拒绝静默更换。
+3. 实际 LIBERO 数据短跑，确认冻结 Video、Action/proprio 梯度、一步采样、保存/恢复和日志都正常。这只是工程验收，不宣称收敛。
+4. 从与 uniform 对照相同的 fresh Action/proprio 初始状态启动 A1：adaptive p=0.5、c=1e-3、LR=1e-4；保持 seed 和原 30k schedule。先观察 1–2k 更新；用独立停止条件/诊断 wrapper 提前结束，不能仅把 max_steps 改成 2000 而缩短 cosine schedule。需要短跑末 checkpoint 时使用独立诊断保存频率，记录该差异。
+5. 比较 raw 对角/非对角误差、correction RMS、裁剪前梯度及固定 seed 一步 action L1。加权 loss 下降但 raw loss/JVP 持续膨胀、action 变差，不能判为修复成功。确认稳定趋势后再扩展训练和闭环评测。
+6. A2 单独比较 p=1（其他同 A1）；如仍不稳定，A3 仅将 A1 的 LR 降至 3e-5。每组用新的输出目录和相同初始状态，不从已失稳 checkpoint/optimizer 继续后声称与 fresh 对照等价。旧失稳 checkpoint 仅用于固定输入诊断。
+
+本轮不自动启动/停止已有训练任务。实现者完成后提交代码 diff、测试结果、实际 resolved config 与短跑记录，再据证据决定后续 iMF 或采样消融。
 
 #### 6.2 K-MF（K0 主方案，K1 中点对照）
 
