@@ -139,3 +139,50 @@ RUN=runs/libero/libero-meanflow-job-3c26a4b4-f3e8-4f67-9d9b-347cd4bca37b-round0
 ```
 
 Raw batch/noise, logs and report are under ignored `runs/libero_debug/jvp-precision-20261020/`. The shareable numerical report, including finite-difference sweeps and the script SHA-256, is [`validation/libero_jvp_precision.json`](validation/libero_jvp_precision.json).
+
+
+### 单 H200、batch=16 完整训练步精度测试（2026-10-20）
+
+脚本：`scripts/libero_debug/benchmark_meanflow_full_step.py`；原始结果：
+`docs/validation/libero_full_step_precision_b16.json`。
+在 `libero-pro` 两卡交互式建模的物理 GPU 1 上顺序测试，另一张卡未用于本次测试。
+两组均从 MeanFlow step 5000 权重初始化，同样的 160 条真实样本、逐步相同随机种子，
+workers=4、首帧解码、减少类型转换。冻结 Video 使用 BF16；FP32 组将 Action（主前向、JVP、反向）
+及 proprio 参数改为 FP32，并转换 Action 条件缓存。TF32 关闭，主前向使用默认 SDPA dispatch，
+JVP 使用 MATH。每步包含 dataloader 等待、输入编码、重新计算 Video prefill、Action/JVP、反向、
+梯度裁剪、AdamW 更新；没有复用上一轮的 Video cache。
+
+| 模式 | 完成步数 | 首步 | 后 9 步平均 | PyTorch 峰值 allocated |
+|---|---:|---:|---:|---:|
+| BF16 | 10/10 | 28.39 s | 3.434 s | 113.80 GiB |
+| Action FP32 | 0/10 | 第一步 OOM | 无有效完整步测量 | OOM 时 138.92 GiB，非成功运行峰值 |
+
+BF16 后 9 步平均分项：输入编码 0.488 s、Video prefill 2.000 s、Action 前向及 JVP 0.649 s、
+反向 0.195 s、裁剪及 optimizer 0.101 s；数据预取后等待约 0.00013 s。
+BF16 reserved 峰值 114.03 GiB。首步包含 worker 等待及 CUDA 初始化，不能代表稳定吞吐。
+
+FP32 在 `slice_condition` 对非对角样本切片复制 Video KV 时 OOM，尚未完成第一步反向，
+也尚未初始化 AdamW moments。去掉 FP32 参数不必要的额外 master 权重后重测，仍在同一位置 OOM：
+卡容量 139.81 GiB，进程占用 139.65 GiB，剩余 152 MiB，额外申请 268 MiB 失败。
+因此不能根据这次实验给出 FP32 的减速比例，也不能将 batch=2 的显存比例外推到 batch=16。
+
+这是单卡计算基准，不使用 DeepSpeed/通信。两组均用新建 FP32 AdamW 状态、LR=1e-4、
+betas=(0.9,0.95)、weight_decay=0.01、clip=1；BF16 有 FP32 master，FP32 直接更新参数。
+未恢复正式训练的 optimizer/scheduler，因此不等价于正式任务断点续训。
+BF16 十步均有限，但 checkpoint 本身已有较大的 loss 波动，十步不能证明收敛。
+正式训练任务和生产训练代码未改动。
+
+复现（空输出目录，GPU 1 空闲时）：
+```bash
+cd /inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2
+source scripts/libero/activate_pro_env.sh
+export CUDA_VISIBLE_DEVICES=1 OMP_NUM_THREADS=4 VPP2_TORCH_LOAD_MMAP=1 VPP2_VIDEO_DECODE_UINT8=1
+export PYTORCH_ALLOC_CONF=expandable_segments:True
+unset RANK WORLD_SIZE LOCAL_RANK LOCAL_WORLD_SIZE MASTER_ADDR MASTER_PORT
+RUN=runs/libero/libero-meanflow-job-3c26a4b4-f3e8-4f67-9d9b-347cd4bca37b-round0
+MODE=bf16 # 改为 fp32_action 测试 FP32
+"$PYTHON_BIN" -u scripts/libero_debug/benchmark_meanflow_full_step.py \
+  --config "$RUN/config.yaml" --checkpoint "$RUN/checkpoints/weights/step_005000.pt" \
+  --mode "$MODE" --steps 10 --batch-size 16 \
+  --output-dir "runs/libero_debug/full-step-retest-$MODE"
+```
