@@ -220,3 +220,30 @@ and full-state loss compatibility guards. The separate bounded real-data test us
 `scripts/libero_debug/adaptive_smoke.py`; its scheduler remains configured for 30000
 steps while only the smoke loop is limited. Formal launch uses the ordinary production
 script with no diagnostic stop limit.
+
+
+The combined 39-test suite and final 9-test adaptive regression suite passed
+(40 unique tests, including the added full-state compatibility guard). On the two-H200
+`libero-pro` notebook, real-data BF16 ZeRO-1 training with batch16 per GPU completed
+updates 1–4, rank-zero evaluations at steps 2/4, full checkpoint saving, and restoration
+of model/optimizer/scheduler/RNG/dataloader state followed by updates 5–6 and evaluation.
+The saved/resumed loss remains adaptive p=0.5,c=0.001; both schedule and MeanFlow budget
+remain 30000 steps. Step6 weighted loss=1.2307, raw MSE=1.5271, preclip norm=3.3038,
+LR=1.40e-6 (warmup continuing), fixed-sample action L1=0.652843. These are short-run
+engineering observations, not a convergence or closed-loop result.
+
+The initial test workers were started before the rank-zero collective correction and
+stalled at evaluation; they were stopped. The restarted test audits the loaded model/loss
+APIs inside each worker and passes evaluation and full restore. Full-state disk save/read
+was slow on the shared filesystem; a diagnostic stack dump confirmed Torch/DeepSpeed
+checkpoint I/O, rather than a training collective hang during the successful restore.
+
+Formal job: `vpp2-libero-meanflow-adaptive-1020`,
+`job-71de1e8c-75b5-4c44-8969-26acbec0b028`, HIGH priority, two 8-H200 instances.
+It starts fresh, with batch16/GPU, global256, accumulation1, BF16/ZeRO1, workers4,
+LR1e-4 with 500 warmup and 30k cosine, save5000, eval200, offline W&B `VPP2-LIBERO`.
+There is no diagnostic early-stop wrapper in this formal job. The 17 compared training/data
+controls match the previous uniform MeanFlow resolved configuration.
+Its output directory is
+`runs/libero/libero-mf-adaptive-p05-job-71de1e8c-75b5-4c44-8969-26acbec0b028-round0`;
+node logs use the same name with `_logs/node0.log` and `_logs/node1.log`.

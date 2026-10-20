@@ -1,5 +1,5 @@
 {
-  "status": "TRAIN_EVAL_SAVE_PASS_FULL_RESUME_IN_PROGRESS",
+  "status": "PASS",
   "tests": {
     "passed": 39,
     "seconds": 32.88,
@@ -72,7 +72,7 @@
     }
   },
   "smoke": {
-    "status": "FULL_RESUME_IN_PROGRESS",
+    "status": "PASS",
     "world_size": 2,
     "batch_per_gpu": 16,
     "global_batch": 32,
@@ -82,7 +82,8 @@
     "stop_step_resume": 6,
     "evaluations_completed": [
       2,
-      4
+      4,
+      6
     ],
     "log": "runs/libero_adaptive_20261020/smoke-r2.log",
     "first_attempt": "Stopped after step 2 eval stalled; workers started before rank-zero collective fix. Restart includes in-process bytecode API checks.",
@@ -150,6 +151,59 @@
       "bf16_zero_pp_rank_0_mp_rank_00_optim_states.pt": 5.196,
       "mp_rank_00_model_states.pt": 33.922,
       "bf16_zero_pp_rank_1_mp_rank_00_optim_states.pt": 5.196
-    }
+    },
+    "resume_run": {
+      "status": "PASS",
+      "step": 6,
+      "schedule_steps": 30000,
+      "resumed_step": 4,
+      "meanflow": {
+        "objective": "data_meanflow",
+        "time_convention": "clean0_noise1",
+        "preserve_baseline_trainability": true,
+        "student_init": {
+          "format": "baseline_init",
+          "action_checkpoint": "weights/libero/action_init.pt",
+          "video_checkpoint": "weights/libero/video_step010000.pt"
+        },
+        "interval": {
+          "source": "shifted_uniform",
+          "diagonal_probability": 0.5
+        },
+        "loss_weighting": "adaptive",
+        "adaptive_weighting": {
+          "power": 0.5,
+          "c": 0.001
+        },
+        "derivative_backend": "jvp",
+        "auxiliary_geometry": false,
+        "budget_steps": 30000
+      },
+      "checkpoint": null,
+      "world_size": 2,
+      "batch_per_gpu": 16
+    },
+    "step6": {
+      "weighted_loss": 1.2307,
+      "raw_mse": 1.5271,
+      "preclip_grad_norm": 3.3038,
+      "learning_rate": 1.4e-06,
+      "action_l1": 0.652843,
+      "validation_loss": 1.24451
+    },
+    "scope": "Engineering validation only: 2 H200 x batch16 global32, four fresh updates, full save and resume for two updates; original 30000-step schedule; no second full-state save. Not convergence or a 16-GPU throughput result."
+  },
+  "checked_at_utc": "2026-10-20T12:28:59.965785+00:00",
+  "implementation_commit": "c08a4b2",
+  "production_job": {
+    "job_id": "job-71de1e8c-75b5-4c44-8969-26acbec0b028",
+    "name": "vpp2-libero-meanflow-adaptive-1020",
+    "status": "job_running",
+    "priority_level": "HIGH",
+    "gpu_count": 16,
+    "running_time_ms": "34000",
+    "url": "https://qz.sii.edu.cn/jobs/distributedTrainingDetail/job-71de1e8c-75b5-4c44-8969-26acbec0b028?spaceId=ws-a2836af9-fddd-40cc-b5b2-3d6df79d651a",
+    "command": "bash -c '\nset -euo pipefail\ncd /inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2\nsource scripts/libero/activate_env.sh\nexport WANDB_PROJECT=VPP2-LIBERO\nexport RUN_NAME=\"libero-mf-adaptive-p05-${TRAIN_JOB_ID:?}-round${RUNNING_ROUND:-0}\"\nbash scripts/libero/train_meanflow.sh\n'\n",
+    "stage": "initializing; first training step not yet observed at this snapshot"
   }
 }
