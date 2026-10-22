@@ -78,6 +78,13 @@ def validate_training_config(cfg, require_portable_target=True):
 def train(args):
     cfg = OmegaConf.merge(OmegaConf.load(args.config), OmegaConf.from_dotlist(args.overrides))
     validate_training_config(cfg)
+    if cfg.data.train.get("episode_manifest"):
+        from vpp2.datasets.lerobot.episode_selection import load_episode_selection
+        _, selection, _ = load_episode_selection(
+            cfg.data.train.episode_manifest, cfg.data.train.dataset_dirs,
+            cfg.data.train.get("episode_manifest_sha256"),
+        )
+        print(json.dumps({"episode_selection": selection}, indent=2))
     world = int(os.environ.get("WORLD_SIZE", "1"))
     gbs = int(cfg.batch_size) * int(cfg.gradient_accumulation_steps) * world
     print(

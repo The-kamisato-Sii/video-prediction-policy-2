@@ -37,6 +37,8 @@ class BaseLerobotDataset(torch.utils.data.Dataset):
         # sampling
         global_sample_stride: int = 1,
         episode_instruction_key: Optional[str] = None,
+        episode_manifest: Optional[str] = None,
+        episode_manifest_sha256: Optional[str] = None,
     ):
         assert len(dataset_dirs) > 0, "At least one dataset directory is required"
         assert past_action_size == 0
@@ -168,7 +170,15 @@ class BaseLerobotDataset(torch.utils.data.Dataset):
             delta_timestamps[meta["lerobot_key"]] = [(t * global_sample_stride) / fps for t in range(-past_action_size, -past_action_size + action_size)]
 
         episodes = {}
-        if val_set_proportion < 1e-6:
+        self.episode_selection = None
+        if episode_manifest is not None:
+            if val_set_proportion != 0:
+                raise ValueError("Episode manifest requires val_set_proportion=0")
+            from .episode_selection import load_episode_selection
+            episodes, self.episode_selection, _ = load_episode_selection(
+                episode_manifest, dataset_dirs, episode_manifest_sha256
+            )
+        elif val_set_proportion < 1e-6:
             for meta in metas:
                 episodes.update({meta.repo_id: list(range(meta.total_episodes))})
         else:

@@ -752,3 +752,63 @@ New LIBERO Action defaults: first-frame decoding, uint8 image path, 4 workers/GP
 See [MeanFlow and Direct Action MSE](docs/libero_one_step.md) for the shared controls,
 16-H200 Qizhi commands, environment activation, logs and validation.
 Both start from baseline Action initialization, not the trained Action30k release.
+
+### LIBERO baseline: training-data fractions
+
+The manifests in `configs/libero/subsets/` select whole episodes from all 40 tasks,
+using seed 42, task-stratified quotas and nested prefixes (1/8 ⊂ 1/4 ⊂ 1/2).
+They reference the existing LeRobot data; videos and parquet files are not copied.
+Within each task, episodes are ordered by SHA256 of the compact JSON array
+`[42, dataset_basename, task_index, episode_index]`. Quotas use largest remainders;
+ties use SHA256 of `[42, dataset_basename, task_index, "quota"]`.
+
+| Fraction of episodes | Episodes | Frames |
+| --- | ---: | ---: |
+| 1/8 | 214 | 34,900 |
+| 1/4 | 428 | 69,942 |
+| 1/2 | 856 | 139,789 |
+| Full | 1,712 | 277,713 |
+
+Submit **three separate one-node, 8-H200 jobs** with the following command; set
+`FRACTION` to `1of8`, `1of4` or `1of2`. The launcher derives batch 32/GPU,
+global batch 256 and gradient accumulation 1 from the allocation.
+
+```bash
+bash -c '
+set -euo pipefail
+cd /inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2
+source scripts/libero/activate_env.sh
+FRACTION=1of8
+MANIFEST="configs/libero/subsets/episodes_${FRACTION}_seed42.json"
+MANIFEST_SHA256="$(sha256sum "$MANIFEST" | cut -d " " -f 1)"
+export WANDB_PROJECT=VPP2-LIBERO
+export RUN_NAME="libero-baseline-${FRACTION}-${TRAIN_JOB_ID:?}-round${RUNNING_ROUND:-0}"
+bash scripts/libero/train_action.sh \
+  "data.train.episode_manifest=$MANIFEST" \
+  "data.train.episode_manifest_sha256=$MANIFEST_SHA256"
+'
+```
+
+The queued jobs pin the manifest hash at submission. Each run saves
+`episode_manifest.json` and `episode_selection.json` alongside `config.yaml`.
+Selection happens inside the LeRobot loader, including its random error retries.
+Dataset paths in manifests resolve from the repository root, as in the training
+configuration. An explicit manifest requires `val_set_proportion=0`.
+
+All runs start from the same Action initialization, use the same frozen full-data
+Video10k checkpoint and official normalization, and retain the baseline recipe:
+30,000 steps, LR 1e-4, cosine schedule, 500 warmup steps, BF16, ZeRO-1,
+first-frame uint8 decoding, 4 workers/GPU, checkpoints every 5,000 steps and
+offline W&B. This measures Action-stage data efficiency at fixed training steps;
+smaller subsets are revisited more often. It is not an end-to-end low-data Video
+training experiment. The four training-sample diagnostics are not held-out
+evaluation and refer to different samples across subsets; compare final policies
+with the same closed-loop LIBERO-PRO evaluation protocol.
+
+To validate episode membership, nesting, retry bounds and exact equality of
+boundary samples against the full-data loader (including action padding):
+
+```bash
+source scripts/libero/activate_env.sh
+python checks/libero_subset_data.py
+```

@@ -1,0 +1,869 @@
+{
+  "fraction": "1/8",
+  "seed": 42,
+  "selection": "Whole episodes, task-stratified largest remainder quotas, stable SHA256 shuffle within each task; nested prefixes",
+  "available_episodes": 1712,
+  "selected_episodes": 214,
+  "available_frames": 277713,
+  "selected_frames": 34900,
+  "frame_fraction": 0.12566930608217836,
+  "episodes_by_dataset": {
+    "data/libero/libero_10_no_noops_lerobot": [
+      14,
+      17,
+      18,
+      37,
+      39,
+      44,
+      61,
+      73,
+      77,
+      78,
+      86,
+      94,
+      103,
+      110,
+      111,
+      115,
+      119,
+      149,
+      154,
+      166,
+      169,
+      170,
+      185,
+      201,
+      204,
+      207,
+      211,
+      215,
+      230,
+      233,
+      238,
+      247,
+      267,
+      268,
+      286,
+      288,
+      299,
+      305,
+      306,
+      322,
+      324,
+      327,
+      331,
+      340,
+      347,
+      351,
+      359,
+      371,
+      383
+    ],
+    "data/libero/libero_goal_no_noops_lerobot": [
+      23,
+      27,
+      34,
+      35,
+      36,
+      52,
+      65,
+      71,
+      72,
+      90,
+      96,
+      104,
+      107,
+      112,
+      115,
+      122,
+      136,
+      146,
+      158,
+      161,
+      175,
+      184,
+      187,
+      192,
+      198,
+      204,
+      215,
+      218,
+      223,
+      226,
+      232,
+      240,
+      271,
+      279,
+      283,
+      284,
+      292,
+      305,
+      307,
+      318,
+      324,
+      327,
+      354,
+      356,
+      357,
+      361,
+      375,
+      381,
+      384,
+      388,
+      400,
+      407,
+      417,
+      428
+    ],
+    "data/libero/libero_object_no_noops_lerobot": [
+      0,
+      16,
+      42,
+      43,
+      44,
+      46,
+      53,
+      66,
+      69,
+      76,
+      80,
+      91,
+      96,
+      99,
+      100,
+      103,
+      127,
+      138,
+      142,
+      146,
+      163,
+      170,
+      180,
+      195,
+      196,
+      202,
+      204,
+      206,
+      212,
+      240,
+      257,
+      258,
+      265,
+      269,
+      273,
+      274,
+      289,
+      293,
+      295,
+      315,
+      325,
+      344,
+      349,
+      350,
+      354,
+      363,
+      371,
+      379,
+      385,
+      389,
+      390,
+      399,
+      414,
+      429,
+      430,
+      435,
+      437,
+      445
+    ],
+    "data/libero/libero_spatial_no_noops_lerobot": [
+      6,
+      9,
+      19,
+      22,
+      44,
+      55,
+      65,
+      68,
+      73,
+      78,
+      83,
+      91,
+      95,
+      111,
+      113,
+      115,
+      141,
+      147,
+      153,
+      169,
+      170,
+      173,
+      191,
+      194,
+      200,
+      203,
+      205,
+      209,
+      226,
+      238,
+      240,
+      251,
+      270,
+      272,
+      276,
+      284,
+      286,
+      297,
+      303,
+      318,
+      321,
+      334,
+      337,
+      340,
+      359,
+      373,
+      383,
+      385,
+      396,
+      400,
+      406,
+      411,
+      433
+    ]
+  },
+  "tasks": [
+    {
+      "dataset": "libero_10_no_noops_lerobot",
+      "task_index": 0,
+      "task": "turn on the stove and put the moka pot on it",
+      "available_episodes": 43,
+      "selected_episodes": 5,
+      "episode_indices": [
+        14,
+        17,
+        18,
+        37,
+        39
+      ],
+      "frames": 1397
+    },
+    {
+      "dataset": "libero_10_no_noops_lerobot",
+      "task_index": 1,
+      "task": "put the black bowl in the bottom drawer of the cabinet and close it",
+      "available_episodes": 35,
+      "selected_episodes": 4,
+      "episode_indices": [
+        44,
+        61,
+        73,
+        77
+      ],
+      "frames": 973
+    },
+    {
+      "dataset": "libero_10_no_noops_lerobot",
+      "task_index": 2,
+      "task": "put the yellow and white mug in the microwave and close it",
+      "available_episodes": 32,
+      "selected_episodes": 4,
+      "episode_indices": [
+        78,
+        86,
+        94,
+        103
+      ],
+      "frames": 1099
+    },
+    {
+      "dataset": "libero_10_no_noops_lerobot",
+      "task_index": 3,
+      "task": "put both moka pots on the stove",
+      "available_episodes": 33,
+      "selected_episodes": 4,
+      "episode_indices": [
+        110,
+        111,
+        115,
+        119
+      ],
+      "frames": 1606
+    },
+    {
+      "dataset": "libero_10_no_noops_lerobot",
+      "task_index": 4,
+      "task": "put both the alphabet soup and the cream cheese box in the basket",
+      "available_episodes": 45,
+      "selected_episodes": 6,
+      "episode_indices": [
+        149,
+        154,
+        166,
+        169,
+        170,
+        185
+      ],
+      "frames": 1567
+    },
+    {
+      "dataset": "libero_10_no_noops_lerobot",
+      "task_index": 5,
+      "task": "put both the alphabet soup and the tomato sauce in the basket",
+      "available_episodes": 38,
+      "selected_episodes": 5,
+      "episode_indices": [
+        201,
+        204,
+        207,
+        211,
+        215
+      ],
+      "frames": 1435
+    },
+    {
+      "dataset": "libero_10_no_noops_lerobot",
+      "task_index": 6,
+      "task": "put both the cream cheese box and the butter in the basket",
+      "available_episodes": 46,
+      "selected_episodes": 6,
+      "episode_indices": [
+        230,
+        233,
+        238,
+        247,
+        267,
+        268
+      ],
+      "frames": 1677
+    },
+    {
+      "dataset": "libero_10_no_noops_lerobot",
+      "task_index": 7,
+      "task": "put the white mug on the left plate and put the yellow and white mug on the right plate",
+      "available_episodes": 37,
+      "selected_episodes": 5,
+      "episode_indices": [
+        286,
+        288,
+        299,
+        305,
+        306
+      ],
+      "frames": 1280
+    },
+    {
+      "dataset": "libero_10_no_noops_lerobot",
+      "task_index": 8,
+      "task": "put the white mug on the plate and put the chocolate pudding to the right of the plate",
+      "available_episodes": 38,
+      "selected_episodes": 5,
+      "episode_indices": [
+        322,
+        324,
+        327,
+        331,
+        340
+      ],
+      "frames": 1179
+    },
+    {
+      "dataset": "libero_10_no_noops_lerobot",
+      "task_index": 9,
+      "task": "pick up the book and place it in the back compartment of the caddy",
+      "available_episodes": 41,
+      "selected_episodes": 5,
+      "episode_indices": [
+        347,
+        351,
+        359,
+        371,
+        383
+      ],
+      "frames": 1023
+    },
+    {
+      "dataset": "libero_goal_no_noops_lerobot",
+      "task_index": 0,
+      "task": "open the middle drawer of the cabinet",
+      "available_episodes": 42,
+      "selected_episodes": 5,
+      "episode_indices": [
+        23,
+        27,
+        34,
+        35,
+        36
+      ],
+      "frames": 664
+    },
+    {
+      "dataset": "libero_goal_no_noops_lerobot",
+      "task_index": 1,
+      "task": "open the top drawer and put the bowl inside",
+      "available_episodes": 33,
+      "selected_episodes": 4,
+      "episode_indices": [
+        52,
+        65,
+        71,
+        72
+      ],
+      "frames": 751
+    },
+    {
+      "dataset": "libero_goal_no_noops_lerobot",
+      "task_index": 2,
+      "task": "push the plate to the front of the stove",
+      "available_episodes": 39,
+      "selected_episodes": 5,
+      "episode_indices": [
+        90,
+        96,
+        104,
+        107,
+        112
+      ],
+      "frames": 748
+    },
+    {
+      "dataset": "libero_goal_no_noops_lerobot",
+      "task_index": 3,
+      "task": "put the bowl on the plate",
+      "available_episodes": 50,
+      "selected_episodes": 6,
+      "episode_indices": [
+        115,
+        122,
+        136,
+        146,
+        158,
+        161
+      ],
+      "frames": 573
+    },
+    {
+      "dataset": "libero_goal_no_noops_lerobot",
+      "task_index": 4,
+      "task": "put the bowl on the stove",
+      "available_episodes": 50,
+      "selected_episodes": 6,
+      "episode_indices": [
+        175,
+        184,
+        187,
+        192,
+        198,
+        204
+      ],
+      "frames": 607
+    },
+    {
+      "dataset": "libero_goal_no_noops_lerobot",
+      "task_index": 5,
+      "task": "put the bowl on top of the cabinet",
+      "available_episodes": 47,
+      "selected_episodes": 6,
+      "episode_indices": [
+        215,
+        218,
+        223,
+        226,
+        232,
+        240
+      ],
+      "frames": 642
+    },
+    {
+      "dataset": "libero_goal_no_noops_lerobot",
+      "task_index": 6,
+      "task": "put the cream cheese in the bowl",
+      "available_episodes": 39,
+      "selected_episodes": 5,
+      "episode_indices": [
+        271,
+        279,
+        283,
+        284,
+        292
+      ],
+      "frames": 515
+    },
+    {
+      "dataset": "libero_goal_no_noops_lerobot",
+      "task_index": 7,
+      "task": "put the wine bottle on the rack",
+      "available_episodes": 38,
+      "selected_episodes": 5,
+      "episode_indices": [
+        305,
+        307,
+        318,
+        324,
+        327
+      ],
+      "frames": 843
+    },
+    {
+      "dataset": "libero_goal_no_noops_lerobot",
+      "task_index": 8,
+      "task": "put the wine bottle on top of the cabinet",
+      "available_episodes": 45,
+      "selected_episodes": 6,
+      "episode_indices": [
+        354,
+        356,
+        357,
+        361,
+        375,
+        381
+      ],
+      "frames": 656
+    },
+    {
+      "dataset": "libero_goal_no_noops_lerobot",
+      "task_index": 9,
+      "task": "turn on the stove",
+      "available_episodes": 50,
+      "selected_episodes": 6,
+      "episode_indices": [
+        384,
+        388,
+        400,
+        407,
+        417,
+        428
+      ],
+      "frames": 555
+    },
+    {
+      "dataset": "libero_object_no_noops_lerobot",
+      "task_index": 0,
+      "task": "pick up the alphabet soup and place it in the basket",
+      "available_episodes": 47,
+      "selected_episodes": 6,
+      "episode_indices": [
+        0,
+        16,
+        42,
+        43,
+        44,
+        46
+      ],
+      "frames": 953
+    },
+    {
+      "dataset": "libero_object_no_noops_lerobot",
+      "task_index": 1,
+      "task": "pick up the bbq sauce and place it in the basket",
+      "available_episodes": 43,
+      "selected_episodes": 5,
+      "episode_indices": [
+        53,
+        66,
+        69,
+        76,
+        80
+      ],
+      "frames": 752
+    },
+    {
+      "dataset": "libero_object_no_noops_lerobot",
+      "task_index": 2,
+      "task": "pick up the butter and place it in the basket",
+      "available_episodes": 45,
+      "selected_episodes": 6,
+      "episode_indices": [
+        91,
+        96,
+        99,
+        100,
+        103,
+        127
+      ],
+      "frames": 974
+    },
+    {
+      "dataset": "libero_object_no_noops_lerobot",
+      "task_index": 3,
+      "task": "pick up the chocolate pudding and place it in the basket",
+      "available_episodes": 50,
+      "selected_episodes": 6,
+      "episode_indices": [
+        138,
+        142,
+        146,
+        163,
+        170,
+        180
+      ],
+      "frames": 961
+    },
+    {
+      "dataset": "libero_object_no_noops_lerobot",
+      "task_index": 4,
+      "task": "pick up the cream cheese and place it in the basket",
+      "available_episodes": 46,
+      "selected_episodes": 6,
+      "episode_indices": [
+        195,
+        196,
+        202,
+        204,
+        206,
+        212
+      ],
+      "frames": 840
+    },
+    {
+      "dataset": "libero_object_no_noops_lerobot",
+      "task_index": 5,
+      "task": "pick up the ketchup and place it in the basket",
+      "available_episodes": 42,
+      "selected_episodes": 5,
+      "episode_indices": [
+        240,
+        257,
+        258,
+        265,
+        269
+      ],
+      "frames": 732
+    },
+    {
+      "dataset": "libero_object_no_noops_lerobot",
+      "task_index": 6,
+      "task": "pick up the milk and place it in the basket",
+      "available_episodes": 45,
+      "selected_episodes": 6,
+      "episode_indices": [
+        273,
+        274,
+        289,
+        293,
+        295,
+        315
+      ],
+      "frames": 839
+    },
+    {
+      "dataset": "libero_object_no_noops_lerobot",
+      "task_index": 7,
+      "task": "pick up the orange juice and place it in the basket",
+      "available_episodes": 47,
+      "selected_episodes": 6,
+      "episode_indices": [
+        325,
+        344,
+        349,
+        350,
+        354,
+        363
+      ],
+      "frames": 853
+    },
+    {
+      "dataset": "libero_object_no_noops_lerobot",
+      "task_index": 8,
+      "task": "pick up the salad dressing and place it in the basket",
+      "available_episodes": 47,
+      "selected_episodes": 6,
+      "episode_indices": [
+        371,
+        379,
+        385,
+        389,
+        390,
+        399
+      ],
+      "frames": 746
+    },
+    {
+      "dataset": "libero_object_no_noops_lerobot",
+      "task_index": 9,
+      "task": "pick up the tomato sauce and place it in the basket",
+      "available_episodes": 45,
+      "selected_episodes": 6,
+      "episode_indices": [
+        414,
+        429,
+        430,
+        435,
+        437,
+        445
+      ],
+      "frames": 878
+    },
+    {
+      "dataset": "libero_spatial_no_noops_lerobot",
+      "task_index": 0,
+      "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
+      "available_episodes": 45,
+      "selected_episodes": 5,
+      "episode_indices": [
+        6,
+        9,
+        19,
+        22,
+        44
+      ],
+      "frames": 484
+    },
+    {
+      "dataset": "libero_spatial_no_noops_lerobot",
+      "task_index": 1,
+      "task": "pick up the black bowl from table center and place it on the plate",
+      "available_episodes": 46,
+      "selected_episodes": 6,
+      "episode_indices": [
+        55,
+        65,
+        68,
+        73,
+        78,
+        83
+      ],
+      "frames": 687
+    },
+    {
+      "dataset": "libero_spatial_no_noops_lerobot",
+      "task_index": 2,
+      "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
+      "available_episodes": 42,
+      "selected_episodes": 5,
+      "episode_indices": [
+        91,
+        95,
+        111,
+        113,
+        115
+      ],
+      "frames": 807
+    },
+    {
+      "dataset": "libero_spatial_no_noops_lerobot",
+      "task_index": 3,
+      "task": "pick up the black bowl next to the cookie box and place it on the plate",
+      "available_episodes": 47,
+      "selected_episodes": 6,
+      "episode_indices": [
+        141,
+        147,
+        153,
+        169,
+        170,
+        173
+      ],
+      "frames": 813
+    },
+    {
+      "dataset": "libero_spatial_no_noops_lerobot",
+      "task_index": 4,
+      "task": "pick up the black bowl next to the plate and place it on the plate",
+      "available_episodes": 46,
+      "selected_episodes": 6,
+      "episode_indices": [
+        191,
+        194,
+        200,
+        203,
+        205,
+        209
+      ],
+      "frames": 659
+    },
+    {
+      "dataset": "libero_spatial_no_noops_lerobot",
+      "task_index": 5,
+      "task": "pick up the black bowl next to the ramekin and place it on the plate",
+      "available_episodes": 45,
+      "selected_episodes": 5,
+      "episode_indices": [
+        226,
+        238,
+        240,
+        251,
+        270
+      ],
+      "frames": 671
+    },
+    {
+      "dataset": "libero_spatial_no_noops_lerobot",
+      "task_index": 6,
+      "task": "pick up the black bowl on the cookie box and place it on the plate",
+      "available_episodes": 45,
+      "selected_episodes": 6,
+      "episode_indices": [
+        272,
+        276,
+        284,
+        286,
+        297,
+        303
+      ],
+      "frames": 596
+    },
+    {
+      "dataset": "libero_spatial_no_noops_lerobot",
+      "task_index": 7,
+      "task": "pick up the black bowl on the ramekin and place it on the plate",
+      "available_episodes": 38,
+      "selected_episodes": 5,
+      "episode_indices": [
+        318,
+        321,
+        334,
+        337,
+        340
+      ],
+      "frames": 525
+    },
+    {
+      "dataset": "libero_spatial_no_noops_lerobot",
+      "task_index": 8,
+      "task": "pick up the black bowl on the stove and place it on the plate",
+      "available_episodes": 36,
+      "selected_episodes": 4,
+      "episode_indices": [
+        359,
+        373,
+        383,
+        385
+      ],
+      "frames": 573
+    },
+    {
+      "dataset": "libero_spatial_no_noops_lerobot",
+      "task_index": 9,
+      "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
+      "available_episodes": 44,
+      "selected_episodes": 5,
+      "episode_indices": [
+        396,
+        400,
+        406,
+        411,
+        433
+      ],
+      "frames": 767
+    }
+  ],
+  "suites": {
+    "libero_10_no_noops_lerobot": {
+      "episodes": 49,
+      "frames": 13236
+    },
+    "libero_goal_no_noops_lerobot": {
+      "episodes": 54,
+      "frames": 6554
+    },
+    "libero_object_no_noops_lerobot": {
+      "episodes": 58,
+      "frames": 8528
+    },
+    "libero_spatial_no_noops_lerobot": {
+      "episodes": 53,
+      "frames": 6582
+    }
+  },
+  "schema_version": 1
+}

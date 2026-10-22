@@ -219,6 +219,12 @@ def run_training(cfg):
     out.mkdir(parents=True, exist_ok=True)
     misc.register_work_dir(out)
     if int(os.environ.get("RANK", "0")) == 0:
+        if cfg.data.train.get("episode_manifest"):
+            from vpp2.datasets.lerobot.episode_selection import snapshot_episode_selection
+            snapshot_episode_selection(
+                cfg.data.train.episode_manifest, cfg.data.train.dataset_dirs, out,
+                cfg.data.train.get("episode_manifest_sha256"),
+            )
         OmegaConf.save(cfg, out / "config.yaml", resolve=True)
     from accelerate.utils import set_seed
     set_seed(int(cfg.seed))

@@ -49,6 +49,8 @@ class RobotVideoDataset(torch.utils.data.Dataset):
         decode_only_first_video_frame: bool = False,
         decode_sampled_video_frames: bool = False,
         episode_instruction_key: Optional[str] = None,
+        episode_manifest: Optional[str] = None,
+        episode_manifest_sha256: Optional[str] = None,
     ):
         if concat_multi_camera != "horizontal" or camera_key is not None:
             raise ValueError("LIBERO release uses both cameras in horizontal layout")
@@ -107,6 +109,8 @@ class RobotVideoDataset(torch.utils.data.Dataset):
             is_training_set=is_training_set,
             global_sample_stride=global_sample_stride,
             episode_instruction_key=episode_instruction_key,
+            episode_manifest=episode_manifest,
+            episode_manifest_sha256=episode_manifest_sha256,
         )
         self.num_frames = num_frames
         self.action_horizon = action_horizon
