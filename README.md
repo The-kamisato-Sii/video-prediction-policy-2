@@ -320,7 +320,7 @@ $$
 
 <a id="libero-mf-adaptive-loss"></a>
 
-#### 6.1.1 当前优先实验：LIBERO MeanFlow adaptive loss weighting
+#### 6.1.1 已实现：LIBERO MeanFlow adaptive loss weighting
 
 **状态：已实现 adaptive weighting；新的 LIBERO fresh-init MeanFlow 默认开启，验证与运行记录见 `docs/libero_one_step.md`。这不是收敛结论。** 本节覆盖旧计划中“先用 uniform”的下一轮实验建议；历史 uniform 运行仍按原配置解释。本轮验证的问题是：在相同初始化、数据、模型、采样与优化器设置下，降低异常 MF 残差的相对梯度贡献，是否改善原始残差、一步 action 误差和闭环表现。
 
@@ -330,7 +330,7 @@ $$
 
 **控制变量。** 继续使用 `configs/libero/train_meanflow.yaml` 的 fresh Action 初始化、冻结 Video-10k、40 层 hidden512 Action1B、可训练 proprio、global batch 256、AdamW、LR=1e-4、warmup=500、30k cosine schedule、clip=1、原数据与 mask。推理仍为一次 `epsilon - u(epsilon, 0, 1)`。不更换 JVP 切向量，不增加 teacher/iMF/K-MF/几何 head，也不改变 Direct Action MSE 或 FM baseline。
 
-时间采样保持当前实现：两次 shift=5 采样后排序，再令 50% 样本 r=t。**不在本轮加入“对角样本独立采时间”。** 作者 [time_sampler.py](https://github.com/Gsunshine/py-meanflow/blob/main/meanflow/models/time_sampler.py) 的 v0 明确标为论文版本，采用相同的“先排序、再设对角”顺序；作者该实现的基础分布是 logit-normal，当前项目是 shifted uniform。两者基础分布不同，但排序顺序不是实现 bug。作者 v1 或独立对角采样留到后续消融。
+本节 adaptive 首轮实验的时间采样保持原实现：两次 shift=5 采样后排序，再令 50% 样本 r=t。**该轮不同时改变对角时间分布；下一项独立消融见 [6.1.2](#libero-mf-diagonal-time)。** 作者 [time_sampler.py](https://github.com/Gsunshine/py-meanflow/blob/main/meanflow/models/time_sampler.py) 的 v0 明确标为论文版本，采用相同的“先排序、再设对角”顺序；作者该实现的基础分布是 logit-normal，当前项目是 shifted uniform。两者基础分布不同，但排序顺序本身不是数学错误。
 
 **精确 loss 定义。** 保留当前 z、v、JVP、target 的定义，仅改变最终 policy loss 的按样本权重：
 
@@ -427,6 +427,91 @@ bash scripts/libero/train_meanflow.sh \
 6. A2 单独比较 p=1（其他同 A1）；如仍不稳定，A3 仅将 A1 的 LR 降至 3e-5。每组用新的输出目录和相同初始状态，不从已失稳 checkpoint/optimizer 继续后声称与 fresh 对照等价。旧失稳 checkpoint 仅用于固定输入诊断。
 
 用户已授权在验证后启动新的 16-H200 adaptive MeanFlow 训练；使用独立输出目录，不自动停止其他任务。代码、测试、resolved config 和短跑记录一并保存。正式训练沿用 30k 预算，不增加自动早停；1–2k 更新用于观察趋势，不能凭短跑宣称收敛。
+
+<a id="libero-mf-diagonal-time"></a>
+
+#### 6.1.2 下一项独立消融：对角 FM 样本单独采时间
+
+**状态（2026-10-23）：本节为待实现规格，本次仅更新 README，不修改训练代码或启动训练。用户反馈加入 adaptive loss 后训练已恢复正常；这不是本次独立复跑或闭环成功率结论。** 保留当前稳定 adaptive 配方，下一轮只改变对角样本的时间分布。旧的 p=1 / 降 LR 建议降为后续可选消融，不作为必须立即执行的修改。
+
+**为什么改。** 当前 `src/vpp2/meanflow/objectives.py::sample_intervals()` 先对两个独立时间做 shift，再取 `t=max(s1,s2), r=min(s1,s2)`，最后把对角行设成 `r=t`。对角处 `t-r=0`，MF target 的确退化为 FM target `epsilon-action`，但其时间分布仍然是两个 shifted 时间的最大值。这里没有漏掉 shift，也没有改变 FM target 的正确性；它偏离的是“对角时间服从单次 shifted uniform”的实验设计意图。新方案不是声称修复原始 MeanFlow 的数学错误，也不保证效果更好。
+
+采用当前 `clean=0, noise=1` 约定，令 `s(u)=k*u/(1+(k-1)*u)`，其中 `u~Uniform(0,1)`。单次 shifted 时间的 CDF 是 `F(x)=x/(k-(k-1)*x)`，历史对角时间的 CDF 是 `F(x)^2`。在 `k=5` 时，两者中位数分别约为 0.8333 和 0.9235。因此，当前对角 FM 监督额外偏向高噪声；新方案只撤销对角分支中的 max 偏置，非对角区间仍保留排序。adaptive weighting 继续作用于两类样本，所以这里只规定采样分布，不声称两类样本的有效梯度占比各为 50%。
+
+**配置契约（拟新增，尚不可直接用于当前代码）。**
+
+```yaml
+meanflow:
+  interval:
+    source: shifted_uniform
+    diagonal_probability: 0.5
+    diagonal_time_sampling: independent  # 新实验；历史模式为 sorted_max
+  loss_weighting: adaptive
+  adaptive_weighting:
+    power: 0.5
+    c: 0.001
+```
+
+- `sorted_max`：保留历史算法；旧配置或旧 checkpoint 缺少新字段时解释为此模式。不得把旧实验自动重标为 independent。
+- `independent`：对角 mask 独立于采样时间；每个被选中的样本用一次新的 shifted uniform 时间，同时赋给 r 和 t。仍使用 `self.train_action_scheduler.shift`（当前 LIBERO 为 5），不新增一个可与训练 scheduler 冲突的 shift 参数。
+- 首轮仅在 LIBERO `data_meanflow` 路径启用新模式；teacher trajectory、Direct Action、K-MF、RoboDojo 保留现有行为。未支持组合应明确报错，不能静默忽略新选项。
+- 对照配置显式设 `sorted_max`，新实验配置显式设 `independent`，使用不同输出目录。新实验参数必须写入 resolved config、dry-run 输出和 checkpoint metadata。
+
+**采样参考伪代码。** 旧模式保留原随机数调用顺序；新模式在生成相同的初始时间对和 mask 后才额外采时间。不要再次对 `td` 与原 `t` 取 max，也不要只覆盖 r 而留下旧 t。
+
+```python
+u = torch.rand(2, batch, device=device)
+s = shift * u / (1 + (shift - 1) * u)
+t, r = s.max(0).values, s.min(0).values
+diagonal = torch.rand(batch, device=device) < diagonal_probability
+
+if diagonal_time_sampling == "sorted_max":
+    return t, torch.where(diagonal, t, r)
+if diagonal_time_sampling != "independent":
+    raise ValueError("Unknown diagonal_time_sampling")
+
+ud = torch.rand(batch, device=device)
+td = shift * ud / (1 + (shift - 1) * ud)
+t = torch.where(diagonal, td, t)
+r = torch.where(diagonal, td, r)
+return t, r
+```
+
+新模式多消耗一次随机数采样，不能宣称相同 seed 会使后续每个 batch 的所有噪声逐位相同。单元测试可通过受控随机输入验证只覆盖对角行；公平训练比较保持 seed、初始化、数据划分、预算和评测噪声协议相同，并对最终候选重复 seeds。`diagonal_probability` 是逐样本 Bernoulli 概率，不要求每个 batch 恰好有一半对角样本。
+
+**修改位置与边界。**
+
+| 文件 | 后续实现要求 |
+|---|---|
+| `src/vpp2/meanflow/objectives.py` | 给 `sample_intervals()` 增加缺省为 `sorted_max` 的兼容参数，校验模式、有限正 shift 和 [0,1] 概率，按上述规则实现。保留 `data_loss()`、target detach、JVP 切向量、padding 和 adaptive 公式；现有对角行跳过 JVP 的逻辑不变。 |
+| `src/vpp2/meanflow/model.py` | 从 interval 配置取模式并传入 sampler。保存完整配置；扩展 compact checkpoint 加载校验，避免静默改变 sampler。 |
+| `src/vpp2/meanflow/cli.py` | 规范化历史缺省值，拒绝拼写错误/未支持组合，dry-run 显示 source、模式、比例、实际 train shift。不要仅接受 YAML 字段却未传到 sampler。 |
+| 配置校验 helper 与 `src/vpp2/trainer.py` | 复用同一 sampler 设置解析/比较逻辑，在完整 optimizer/scheduler resume 和 compact checkpoint 加载两条路径验证 sampler 契约。旧 metadata 缺省解释为 `sorted_max`，保留现有 loss 设置校验。 |
+| `configs/libero/train_meanflow.yaml` 与独立实验配置 | 原稳定配方显式保留 `sorted_max`，另建如 `configs/libero/train_meanflow_independent_diagonal.yaml` 继承该配置，仅覆盖模式和输出目录。两份都保留 adaptive。 |
+| `checks/test_meanflow.py` 或专门 sampler 测试 | 验证旧模式等价、新模式分布、分支边界、JVP 跳过、配置传递、两种 checkpoint 恢复路径。 |
+| `docs/libero_one_step.md` | 实现后补充可运行命令、实际测试与短跑记录，再更新本节状态；不能预先宣称已实现或性能提升。 |
+
+**恢复与继续训练。** 普通 resume 必须保持 sampler 模式、比例、source 与实际 shift 一致；缺失的历史信息应按可核实的旧配置解析，不能猜测。切换模式是新实验：主对照从相同 fresh Action/proprio 初始化开始。若为节省迭代成本，从已有稳定 adaptive checkpoint 分出两支，必须同时做旧模式 continuation 对照，匹配恢复的 optimizer/scheduler/训练预算，并明确记录父 checkpoint 和切换 step；这是 continuation 实验，不能当成从头训练的同等证据。不得借普通 resume 静默更改模式。
+
+**验收与观测。**
+
+1. 受控随机数测试：`sorted_max` 与原实现逐项相同；`independent` 的非对角行仍为原 max/min，对角行的 r、t 都等于独立 td。覆盖 probability=0/1/0.5、shift=1/5，确保有限且 `0<=r<=t<=1`；非法模式和非有限参数报错。
+2. 固定种子的大样本统计检查：probability=1 时，新旧经验 CDF 分别接近 F 与 F²，用足够样本和预设统计容差，不能要求有限样本严格相等。probability=0 时，两种模式的区间分布一致；不使用“无 max”等价于“均匀 t”这种错误断言。
+3. Toy loss 测试：全部对角时 derivative 回调不被调用；对给定 td，两模式的 loss 都等于同一 adaptive masked FM 公式，预测分支梯度非零。两 rank smoke 覆盖某 rank 无对角/非对角行，日志归约不挂起。
+4. 增加按对角/非对角分别记录的 t 分桶计数、均值和 gap 分桶；分布式使用全局 sum/count 或直方图，空桶保留 count=0。保留 raw/weighted MSE、有效样本数、权重、preclip grad norm。现有 correction RMS 混入对角零值；另记非对角有效元素 correction RMS，避免以后改变对角比例时产生假改善。
+5. 在相同固定验证集、相同噪声 seed 下比较一步 `epsilon-u(epsilon,0,1)` 的 action L1/MSE，并分 action 维度报告。采样改变后，训练 loss 的平均对象也变了，不能直接用训练 loss 更低判断获益；可增加一套两模式共用的固定 (r,t) 诊断集。训练样本上的固定 L1 不能替代 held-out 验证。
+6. 按原 30k schedule 做 1–2k 更新诊断，使用独立停止机制保留原 schedule；匹配 checkpoint step 做同一 LIBERO 闭环子集的早期筛选。最终报告完整 LIBERO 与 LIBERO-PRO、每任务结果、统一评测 seeds 与时延；小子集的好结果不能替代完整评测。
+
+**在 adaptive 已稳定之后，后续优先级。**
+
+| 顺序 | 单独比较什么 | 什么时候值得做 |
+|---|---|---|
+| D0 / D1（现在） | adaptive + sorted_max 对比 adaptive + independent；其余完全相同 | 验证去掉对角 max 偏置是否改善一步动作和闭环，而非继续证明 loss 能下降。保持当前稳定的 LR 与 p/c。 |
+| D2（条件性） | 在选定模式下，diagonal_probability=0.25/0.5/0.75 | 如果对角局部 FM 学得好、但大 gap/一步输出弱，再检查局部与区间监督的分配。比例也改变 JVP 成本，同时报告相同更新预算及训练耗时；这些比例是项目消融，不冒充论文默认。 |
+| D3（条件性） | 在选定 sampler 下，单独比较 shift=5 与较小 shift（如 1） | 只在时间分桶/固定验证显示噪声区域覆盖失衡时做；shift=1 不等于复现原论文的 logit-normal 配方。不要与 D1 同时改变非对角时间分布。 |
+| D4（之后） | 固定 sampler 后比较原 MF 与 K-MF；或单独测试 teacher 蒸馏 | 一步闭环质量仍不足时再改变目标；adaptive 当前仅支持 data_meanflow，迁移到 K-MF 需单独设计与校验，不能直接打开配置。 |
+
+低学习率、p=1、FP32 JVP 都不是当前必须修改的项目；若 raw 残差、JVP、梯度再次持续异常，再依据诊断单独测试。不要用“加了 adaptive 后训练正常”推断一步性能已等于 10-step FM。先完成稳定 MF 的动作与闭环对照，再进入几何 heads。
 
 #### 6.2 K-MF（K0 主方案，K1 中点对照）
 
