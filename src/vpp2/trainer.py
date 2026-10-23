@@ -833,6 +833,10 @@ class JointTrainer:
             metadata = Path(state_dir) / "trainer_state.json"
             saved = json.loads(metadata.read_text()) if metadata.exists() else {}
             validate_loss_resume(model.meanflow_config, saved.get("meanflow_config", {}))
+            from .meanflow.experiment_config import validate_experiment_resume
+            validate_experiment_resume(
+                model.meanflow_config, saved.get("meanflow_config", {}), checkpoint_path=metadata
+            )
         self.accelerator.load_state(input_dir=state_dir)
         state_file = Path(state_dir) / "trainer_state.json"
         if state_file.exists():

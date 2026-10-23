@@ -155,6 +155,26 @@ class ActionDiT(nn.Module):
         if meanflow:
             self.enable_meanflow()
 
+    def enable_direct_action_queries(self, query_length):
+        """Zero-initialized normalized-action queries, before the unchanged encoder."""
+        shape = (1, int(query_length), self.action_dim)
+        if shape[1] <= 0:
+            raise ValueError("Direct Action query length must be positive")
+        if hasattr(self, "direct_action_queries"):
+            if tuple(self.direct_action_queries.shape) != shape:
+                raise ValueError("Direct Action query shape differs from the existing parameter")
+            return
+        ref = self.action_encoder.weight
+        self.direct_action_queries = nn.Parameter(torch.zeros(shape, device=ref.device, dtype=ref.dtype))
+
+    def direct_action_input(self, reference):
+        queries = getattr(self, "direct_action_queries", None)
+        if queries is None:
+            return torch.zeros_like(reference)
+        if reference.ndim != 3 or reference.shape[1:] != queries.shape[1:]:
+            raise ValueError("Direct Action horizon/dimension differs from learned query shape")
+        return queries.to(reference).expand(reference.shape[0], -1, -1)
+
     def enable_meanflow(self):
         """Add a zero-output end-time branch without changing legacy parameters."""
         if hasattr(self, "time_end_embedding"):

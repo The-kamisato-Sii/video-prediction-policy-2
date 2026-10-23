@@ -1,0 +1,7 @@
+_base_: train_direct_action.yaml
+output_dir: runs/libero/direct_action_learnable_mse_fresh
+meanflow:
+  direct_action:
+    loss: mse
+    input: learnable
+    query_length: 32

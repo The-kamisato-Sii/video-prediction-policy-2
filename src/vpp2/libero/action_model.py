@@ -66,6 +66,11 @@ class LiberoActionModel(VPP2):
             self.action_sampler = payload["meanflow"].get("action_sampler", "meanflow")
             if self.action_sampler == "meanflow":
                 self.action_expert.enable_meanflow()
+            elif self.action_sampler == "direct_action":
+                from vpp2.meanflow.experiment_config import direct_action_settings
+                direct = direct_action_settings(payload["meanflow"].get("config", {}))
+                if direct["input"] == "learnable":
+                    self.action_expert.enable_direct_action_queries(direct["query_length"])
         else:
             self.action_sampler = "flow_matching"
         self.action_expert.load_state_dict(payload["action_expert"], strict=True)

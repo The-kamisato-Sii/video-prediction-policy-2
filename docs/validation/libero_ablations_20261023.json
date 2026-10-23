@@ -1,0 +1,464 @@
+{
+  "date_utc": "2026-10-23",
+  "notebook_name": "vpp2-one-step-ablations-2h200",
+  "notebook_id": "7afff45e-8a19-40c0-85c1-e4599d9ce4b2",
+  "gpu": "2 x NVIDIA H200 141 GB",
+  "precision": "bf16",
+  "deepspeed_zero_stage": 1,
+  "base_commit": "016f04765205e921640b42e0e75a7eb2d433eaeb",
+  "source_sha256": {
+    "checks/libero_ablation_smoke.py": "d9d2dcb0b2e31fc6fca68a9c812ca7781cbf6cebd915ef112874f5085bf283bf",
+    "checks/test_libero_ablations.py": "388acc2206039d866ddd92b94ad9d92b670689ed4702683239f04614f3bed699",
+    "checks/test_meanflow_adaptive.py": "bc424eb56830fa345cd83bb856108f5f1c283f5198bd49ad9230c4aca0444670",
+    "configs/libero/train_direct_action.yaml": "54690b9f8f50a6d8843abb980f2018e0f50acd6c0f21071ee707868b8bd71e61",
+    "configs/libero/train_direct_action_learnable_mae.yaml": "60c5c484adc86b7b7dc69f32db98270b1d2c8e1a08e8f6cdf03111e739f403db",
+    "configs/libero/train_direct_action_learnable_mse.yaml": "d121975aeac1f1863d5d1b2587fa4440ab0758cf639f841f5472b37404a49c77",
+    "configs/libero/train_direct_action_mae.yaml": "70bb19f262689a34ba66e56d9d2f03af0b2db2b6519c519bb8665e55572f5fde",
+    "configs/libero/train_meanflow.yaml": "e14db5a8ec8a55f70da6e56f45806ceaf6c3398ff0790e330b6ba5acd649d3e8",
+    "configs/libero/train_meanflow_diagonal_fix.yaml": "9305edca195d0b34067182d7b144280b9add100c208b7a2a059281671be9334e",
+    "scripts/libero/train_direct_action_learnable_mae.sh": "88cc9fb7fe08b581e7043e7d2e03882055dbf571cfdd214778867420f55b4906",
+    "scripts/libero/train_direct_action_learnable_mse.sh": "55cebd37e24f0a9e09a28502f824e51ef6e8497610b3dd71164b6a9e9eb292e2",
+    "scripts/libero/train_direct_action_mae.sh": "f03ab76f2346c66634b1c0ec789d88fb102cd655cf7d59d26d10602c1b3a8da0",
+    "scripts/libero/train_meanflow_diagonal_fix.sh": "37212e9e20ca8d7e62f71f977c1f4b6b57f17ea9178fa1656c5866a4a2de4237",
+    "scripts/libero/train_one_step.sh": "327e266f8984673319c7bce21755f14cdb7c0f4c84499e7ff64a88160bee037a",
+    "src/vpp2/libero/action_model.py": "311f8072a1ec5652ca3ddb98a255be32d9cdf81eba86b2e6e52b5c9995d27cc4",
+    "src/vpp2/meanflow/cli.py": "962896aa7fcf035a04ebe25fb33e683d9d3304d95369e4728ee834ba496dfc38",
+    "src/vpp2/meanflow/experiment_config.py": "9bbb9ef76f891989baba6864eb8870ba22f220df3cf27d41eeb7e297e202ae33",
+    "src/vpp2/meanflow/model.py": "cd0c4e3ff9e308c82eb663a252d6bc1c47a324743c2c81f6beec0a9e55e9fdd6",
+    "src/vpp2/meanflow/objectives.py": "8dc04659fc147f52c586c8a44812a4898573825745f1033a5d95360bc8cba67f",
+    "src/vpp2/models/wan21_14b/action_dit.py": "9af6b80c8f77e641ca2699db5753bd61a51dc334410b2b18ec9fd2589053e00c",
+    "src/vpp2/models/wan21_14b/vpp2.py": "a78172d8ae06afe69a0e856769a1dc4b253665dc434632173e476505b6a5c67a",
+    "src/vpp2/trainer.py": "154ddf4c909f24b97524986e644878d42d55d1550f0095a90940612d10e5a649"
+  },
+  "checks": {
+    "passed_distinct": 79,
+    "existing_regression": 40,
+    "new_ablation": 39,
+    "evidence_logs": [
+      "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/runs/libero_ablations_validation_20261023/regression.log",
+      "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/runs/libero_ablations_validation_20261023/distributed_recheck.log",
+      "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/runs/libero_ablations_validation_20261023/ablations_tests.log",
+      "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/runs/libero_ablations_validation_20261023/routing_test.log"
+    ],
+    "resolved_test_failure": "Existing two-rank test hit its 45s barrier timeout during rank-zero-only cold imports. Evaluation imports moved before process-group creation on both ranks; the same 45s timeout then passed.",
+    "launcher_dry_runs": "8 GPUs plus 16 GPUs rank0/rank1; unrelated cwd; global256, grad_acc1, workers4",
+    "optimizer_scheduler_round_trip": "Learned-query small-model Accelerator save/load + next update matched exactly"
+  },
+  "gpu_runs": [
+    {
+      "method": "meanflow_diagonal_fix",
+      "world_size": 2,
+      "batch_per_gpu": 2,
+      "global_batch": 4,
+      "gradient_accumulation_steps": 1,
+      "steps": 4,
+      "final_train_loss_rounded": 1.1318,
+      "peak_allocated_gib": 49.53831481933594,
+      "compact_reload": true,
+      "inference_nfe": 1,
+      "query_parameter_checks": "not_applicable",
+      "rank_reports": [
+        {
+          "rank": 0,
+          "steps": 4,
+          "schedule_steps": 30000,
+          "batch_per_gpu": 2,
+          "peak_allocated_gib": 49.53831481933594,
+          "compact_reload": true,
+          "inference_nfe": 1,
+          "query_gradient_norms": [],
+          "config": {
+            "objective": "data_meanflow",
+            "time_convention": "clean0_noise1",
+            "preserve_baseline_trainability": true,
+            "student_init": {
+              "format": "baseline_init",
+              "action_checkpoint": "weights/libero/action_init.pt",
+              "video_checkpoint": "weights/libero/video_step010000.pt"
+            },
+            "interval": {
+              "source": "shifted_uniform",
+              "diagonal_time_sampling": "independent",
+              "diagonal_probability": 0.5,
+              "train_shift": 5.0
+            },
+            "loss_weighting": "adaptive",
+            "adaptive_weighting": {
+              "power": 0.5,
+              "c": 0.001
+            },
+            "derivative_backend": "jvp",
+            "auxiliary_geometry": false,
+            "budget_steps": 30000
+          }
+        },
+        {
+          "rank": 1,
+          "steps": 4,
+          "schedule_steps": 30000,
+          "batch_per_gpu": 2,
+          "peak_allocated_gib": 49.53831481933594,
+          "compact_reload": true,
+          "inference_nfe": 1,
+          "query_gradient_norms": [],
+          "config": {
+            "objective": "data_meanflow",
+            "time_convention": "clean0_noise1",
+            "preserve_baseline_trainability": true,
+            "student_init": {
+              "format": "baseline_init",
+              "action_checkpoint": "weights/libero/action_init.pt",
+              "video_checkpoint": "weights/libero/video_step010000.pt"
+            },
+            "interval": {
+              "source": "shifted_uniform",
+              "diagonal_time_sampling": "independent",
+              "diagonal_probability": 0.5,
+              "train_shift": 5.0
+            },
+            "loss_weighting": "adaptive",
+            "adaptive_weighting": {
+              "power": 0.5,
+              "c": 0.001
+            },
+            "derivative_backend": "jvp",
+            "auxiliary_geometry": false,
+            "budget_steps": 30000
+          }
+        }
+      ],
+      "log": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/runs/libero_ablations_validation_20261023/meanflow_diagonal_fix.log",
+      "logged_preclip_grad_norms": [
+        3.8691,
+        3.364,
+        3.067,
+        4.0987
+      ]
+    },
+    {
+      "method": "direct_action_mae",
+      "world_size": 2,
+      "batch_per_gpu": 2,
+      "global_batch": 4,
+      "gradient_accumulation_steps": 1,
+      "steps": 4,
+      "final_train_loss_rounded": 0.3891,
+      "peak_allocated_gib": 45.708102226257324,
+      "compact_reload": true,
+      "inference_nfe": 1,
+      "query_parameter_checks": "not_applicable",
+      "rank_reports": [
+        {
+          "rank": 0,
+          "steps": 4,
+          "schedule_steps": 30000,
+          "batch_per_gpu": 2,
+          "peak_allocated_gib": 45.708102226257324,
+          "compact_reload": true,
+          "inference_nfe": 1,
+          "query_gradient_norms": [],
+          "config": {
+            "objective": "direct_action",
+            "direct_action": {
+              "loss": "mae",
+              "input": "zero"
+            },
+            "time_convention": "clean0_noise1",
+            "preserve_baseline_trainability": true,
+            "student_init": {
+              "format": "baseline_init",
+              "action_checkpoint": "weights/libero/action_init.pt",
+              "video_checkpoint": "weights/libero/video_step010000.pt"
+            },
+            "interval": {
+              "source": "shifted_uniform",
+              "diagonal_probability": 0.5,
+              "diagonal_time_sampling": "sorted_max",
+              "train_shift": 5.0
+            },
+            "loss_weighting": "uniform",
+            "derivative_backend": "none",
+            "auxiliary_geometry": false,
+            "adaptive_weighting": {
+              "power": 0.5,
+              "c": 0.001
+            },
+            "budget_steps": 30000
+          }
+        },
+        {
+          "rank": 1,
+          "steps": 4,
+          "schedule_steps": 30000,
+          "batch_per_gpu": 2,
+          "peak_allocated_gib": 45.708102226257324,
+          "compact_reload": true,
+          "inference_nfe": 1,
+          "query_gradient_norms": [],
+          "config": {
+            "objective": "direct_action",
+            "direct_action": {
+              "loss": "mae",
+              "input": "zero"
+            },
+            "time_convention": "clean0_noise1",
+            "preserve_baseline_trainability": true,
+            "student_init": {
+              "format": "baseline_init",
+              "action_checkpoint": "weights/libero/action_init.pt",
+              "video_checkpoint": "weights/libero/video_step010000.pt"
+            },
+            "interval": {
+              "source": "shifted_uniform",
+              "diagonal_probability": 0.5,
+              "diagonal_time_sampling": "sorted_max",
+              "train_shift": 5.0
+            },
+            "loss_weighting": "uniform",
+            "derivative_backend": "none",
+            "auxiliary_geometry": false,
+            "adaptive_weighting": {
+              "power": 0.5,
+              "c": 0.001
+            },
+            "budget_steps": 30000
+          }
+        }
+      ],
+      "log": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/runs/libero_ablations_validation_20261023/direct_action_mae.log",
+      "logged_preclip_grad_norms": [
+        3.6707,
+        3.6907,
+        4.1754,
+        4.1627
+      ]
+    },
+    {
+      "method": "direct_action_learnable_mae",
+      "world_size": 2,
+      "batch_per_gpu": 2,
+      "global_batch": 4,
+      "gradient_accumulation_steps": 1,
+      "steps": 4,
+      "final_train_loss_rounded": 0.3891,
+      "peak_allocated_gib": 45.708102226257324,
+      "compact_reload": true,
+      "inference_nfe": 1,
+      "query_parameter_checks": "finite_nonzero_gradients_and_updates; identical_parameters_across_ranks",
+      "rank_reports": [
+        {
+          "rank": 0,
+          "steps": 4,
+          "schedule_steps": 30000,
+          "batch_per_gpu": 2,
+          "peak_allocated_gib": 45.708102226257324,
+          "compact_reload": true,
+          "inference_nfe": 1,
+          "query_gradient_norms": [
+            0.023303024470806122,
+            0.031242724508047104,
+            0.020673638209700584,
+            0.022910799831151962
+          ],
+          "config": {
+            "objective": "direct_action",
+            "direct_action": {
+              "loss": "mae",
+              "input": "learnable",
+              "query_length": 32
+            },
+            "time_convention": "clean0_noise1",
+            "preserve_baseline_trainability": true,
+            "student_init": {
+              "format": "baseline_init",
+              "action_checkpoint": "weights/libero/action_init.pt",
+              "video_checkpoint": "weights/libero/video_step010000.pt"
+            },
+            "interval": {
+              "source": "shifted_uniform",
+              "diagonal_probability": 0.5,
+              "diagonal_time_sampling": "sorted_max",
+              "train_shift": 5.0
+            },
+            "loss_weighting": "uniform",
+            "derivative_backend": "none",
+            "auxiliary_geometry": false,
+            "adaptive_weighting": {
+              "power": 0.5,
+              "c": 0.001
+            },
+            "budget_steps": 30000
+          }
+        },
+        {
+          "rank": 1,
+          "steps": 4,
+          "schedule_steps": 30000,
+          "batch_per_gpu": 2,
+          "peak_allocated_gib": 45.708102226257324,
+          "compact_reload": true,
+          "inference_nfe": 1,
+          "query_gradient_norms": [
+            0.02563701756298542,
+            0.022965557873249054,
+            0.021858764812350273,
+            0.02112359181046486
+          ],
+          "config": {
+            "objective": "direct_action",
+            "direct_action": {
+              "loss": "mae",
+              "input": "learnable",
+              "query_length": 32
+            },
+            "time_convention": "clean0_noise1",
+            "preserve_baseline_trainability": true,
+            "student_init": {
+              "format": "baseline_init",
+              "action_checkpoint": "weights/libero/action_init.pt",
+              "video_checkpoint": "weights/libero/video_step010000.pt"
+            },
+            "interval": {
+              "source": "shifted_uniform",
+              "diagonal_probability": 0.5,
+              "diagonal_time_sampling": "sorted_max",
+              "train_shift": 5.0
+            },
+            "loss_weighting": "uniform",
+            "derivative_backend": "none",
+            "auxiliary_geometry": false,
+            "adaptive_weighting": {
+              "power": 0.5,
+              "c": 0.001
+            },
+            "budget_steps": 30000
+          }
+        }
+      ],
+      "log": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/runs/libero_ablations_validation_20261023/direct_action_learnable_mae.log",
+      "logged_preclip_grad_norms": [
+        3.6712,
+        3.6789,
+        4.1649,
+        4.1764
+      ]
+    },
+    {
+      "method": "direct_action_learnable_mse",
+      "world_size": 2,
+      "batch_per_gpu": 2,
+      "global_batch": 4,
+      "gradient_accumulation_steps": 1,
+      "steps": 4,
+      "final_train_loss_rounded": 0.2795,
+      "peak_allocated_gib": 45.708102226257324,
+      "compact_reload": true,
+      "inference_nfe": 1,
+      "query_parameter_checks": "finite_nonzero_gradients_and_updates; identical_parameters_across_ranks",
+      "rank_reports": [
+        {
+          "rank": 0,
+          "steps": 4,
+          "schedule_steps": 30000,
+          "batch_per_gpu": 2,
+          "peak_allocated_gib": 45.708102226257324,
+          "compact_reload": true,
+          "inference_nfe": 1,
+          "query_gradient_norms": [
+            0.017862962558865547,
+            0.029001576825976372,
+            0.020353520289063454,
+            0.021562116220593452
+          ],
+          "config": {
+            "objective": "direct_action",
+            "direct_action": {
+              "loss": "mse",
+              "input": "learnable",
+              "query_length": 32
+            },
+            "time_convention": "clean0_noise1",
+            "preserve_baseline_trainability": true,
+            "student_init": {
+              "format": "baseline_init",
+              "action_checkpoint": "weights/libero/action_init.pt",
+              "video_checkpoint": "weights/libero/video_step010000.pt"
+            },
+            "interval": {
+              "source": "shifted_uniform",
+              "diagonal_probability": 0.5,
+              "diagonal_time_sampling": "sorted_max",
+              "train_shift": 5.0
+            },
+            "loss_weighting": "uniform",
+            "derivative_backend": "none",
+            "auxiliary_geometry": false,
+            "adaptive_weighting": {
+              "power": 0.5,
+              "c": 0.001
+            },
+            "budget_steps": 30000
+          }
+        },
+        {
+          "rank": 1,
+          "steps": 4,
+          "schedule_steps": 30000,
+          "batch_per_gpu": 2,
+          "peak_allocated_gib": 45.708102226257324,
+          "compact_reload": true,
+          "inference_nfe": 1,
+          "query_gradient_norms": [
+            0.025597283616662025,
+            0.021615009754896164,
+            0.0220109261572361,
+            0.0228356271982193
+          ],
+          "config": {
+            "objective": "direct_action",
+            "direct_action": {
+              "loss": "mse",
+              "input": "learnable",
+              "query_length": 32
+            },
+            "time_convention": "clean0_noise1",
+            "preserve_baseline_trainability": true,
+            "student_init": {
+              "format": "baseline_init",
+              "action_checkpoint": "weights/libero/action_init.pt",
+              "video_checkpoint": "weights/libero/video_step010000.pt"
+            },
+            "interval": {
+              "source": "shifted_uniform",
+              "diagonal_probability": 0.5,
+              "diagonal_time_sampling": "sorted_max",
+              "train_shift": 5.0
+            },
+            "loss_weighting": "uniform",
+            "derivative_backend": "none",
+            "auxiliary_geometry": false,
+            "adaptive_weighting": {
+              "power": 0.5,
+              "c": 0.001
+            },
+            "budget_steps": 30000
+          }
+        }
+      ],
+      "log": "/inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2/runs/libero_ablations_validation_20261023/direct_action_learnable_mse.log",
+      "logged_preclip_grad_norms": [
+        3.5833,
+        2.9455,
+        3.621,
+        4.9715
+      ]
+    }
+  ],
+  "limitations": [
+    "Four updates per method with real LIBERO data and full-size model; diagnostic global batch4, not production256.",
+    "The original 30000-step scheduler was built before shortening the loop; no convergence or task-success result.",
+    "Actual 16-GPU cross-node execution and production batch16/32 were not run for these new variants.",
+    "All methods verified compact checkpoint reload and synthetic-observation one-NFE inference on both ranks; this is not a LIBERO environment rollout.",
+    "Zero-input MAE also saved full DeepSpeed state. Remaining methods avoided repeated frozen-Video serialization; full optimizer/scheduler query round-trip was tested on a small model."
+  ]
+}

@@ -4,15 +4,30 @@ import torch
 from torch import nn
 
 from .loss_config import loss_settings
+from .experiment_config import interval_settings
 
 
 @torch.no_grad()
 def loss_diagnostics(per_sample, weighted, weights, has_valid, gap, correction, is_pad,
-                     *, distributed=True):
+                     *, t, distributed=True):
     """Global valid-sample statistics; every rank enters the same two collectives."""
     diagonal = has_valid & (gap == 0)
     offdiagonal = has_valid & (gap > 0)
     valid = valid_elements(correction, is_pad)
+    off_valid = valid & expand_time(offdiagonal, correction)
+    # Fixed-size sums/counts: even an empty group participates in both collectives.
+    distribution = {
+        "mf/t_diagonal_sum": torch.where(diagonal, t, 0).sum(),
+        "mf/t_offdiagonal_sum": torch.where(offdiagonal, t, 0).sum(),
+        "mf/gap_offdiagonal_sum": torch.where(offdiagonal, gap, 0).sum(),
+        "mf/correction_offdiagonal_squared_sum": torch.where(off_valid, correction.float().square(), 0).sum(),
+        "mf/offdiagonal_valid_elements": off_valid.sum(),
+    }
+    for group, rows in (("diagonal", diagonal), ("offdiagonal", offdiagonal)):
+        for quantity, values in (("t", t), ("gap", gap)):
+            for index in range(5):
+                bucket = (values >= index / 5) & ((values < (index + 1) / 5) if index < 4 else (values <= 1))
+                distribution[f"mf/{quantity}_{group}_bin{index}_count"] = (rows & bucket).sum()
     sums = torch.stack([
         torch.where(has_valid, per_sample, 0).sum(),
         torch.where(has_valid, weighted, 0).sum(),
@@ -21,13 +36,14 @@ def loss_diagnostics(per_sample, weighted, weights, has_valid, gap, correction, 
         torch.where(has_valid, weights, 0).sum(),
         has_valid.sum(), diagonal.sum(), offdiagonal.sum(),
         torch.where(valid, correction.float().square(), 0).sum(), valid.sum(),
+        *distribution.values(),
     ]).float()
     maximum = torch.where(has_valid, weights, 0).max()
     if distributed and torch.distributed.is_available() and torch.distributed.is_initialized():
         torch.distributed.all_reduce(sums)
         torch.distributed.all_reduce(maximum, op=torch.distributed.ReduceOp.MAX)
     count, diag_count, off_count = sums[5:8]
-    return {
+    metrics = {
         "mf/raw_mse": sums[0] / count.clamp_min(1),
         "mf/weighted_mse": sums[1] / count.clamp_min(1),
         "mf/raw_mse_diagonal": sums[2] / diag_count.clamp_min(1),
@@ -38,7 +54,13 @@ def loss_diagnostics(per_sample, weighted, weights, has_valid, gap, correction, 
         "mf/diagonal_samples": diag_count,
         "mf/offdiagonal_samples": off_count,
         "mf/correction_rms": (sums[8] / sums[9].clamp_min(1)).sqrt(),
+        "mf/t_diagonal_mean": sums[10] / diag_count.clamp_min(1),
+        "mf/t_offdiagonal_mean": sums[11] / off_count.clamp_min(1),
+        "mf/gap_offdiagonal_mean": sums[12] / off_count.clamp_min(1),
+        "mf/correction_rms_offdiagonal": (sums[13] / sums[14].clamp_min(1)).sqrt(),
     }
+    metrics.update(zip(distribution, sums[10:]))
+    return metrics
 
 
 def expand_time(t, x):
@@ -53,12 +75,15 @@ def valid_elements(x, is_pad=None):
     return (~is_pad.bool()).unsqueeze(-1).expand_as(x)
 
 
-def masked_per_sample(pred, target, is_pad=None):
+def masked_per_sample(pred, target, is_pad=None, *, loss_type="mse"):
     if pred.shape != target.shape:
         raise ValueError("Prediction and target shapes must match exactly")
     valid = valid_elements(pred, is_pad)
     count = valid.flatten(1).sum(1)
-    error = torch.where(valid, (pred.float() - target.float()).square(), 0.0)
+    residual = pred.float() - target.float()
+    if loss_type not in {"mse", "mae"}:
+        raise ValueError(f"Unknown masked loss: {loss_type}")
+    error = torch.where(valid, residual.square() if loss_type == "mse" else residual.abs(), 0.0)
     return error.flatten(1).sum(1) / count.clamp_min(1), count > 0
 
 
@@ -92,14 +117,20 @@ class SplitGenerator(nn.Module):
         return self.net(torch.stack((t, r), -1).to(self.net[0].weight)).squeeze(-1).float()
 
 
-def sample_intervals(batch, device, shift, diagonal_probability=0.5):
-    if not 0 <= diagonal_probability <= 1 or shift <= 0:
-        raise ValueError("Invalid interval sampler parameters")
+def sample_intervals(batch, device, shift, diagonal_probability=0.5,
+                     diagonal_time_sampling="sorted_max"):
+    interval_settings({"interval": dict(diagonal_probability=diagonal_probability,
+                      diagonal_time_sampling=diagonal_time_sampling)}, shift)
     u = torch.rand(2, batch, device=device)
     s = shift * u / (1 + (shift - 1) * u)
     t, r = s.max(0).values, s.min(0).values
     diagonal = torch.rand(batch, device=device) < diagonal_probability
-    return t, torch.where(diagonal, t, r)
+    if diagonal_time_sampling == "sorted_max":
+        return t, torch.where(diagonal, t, r)
+    # Independent of the interval pair AND mask. Replace BOTH endpoints.
+    ud = torch.rand(batch, device=device)
+    td = shift * ud / (1 + (shift - 1) * ud)
+    return torch.where(diagonal, td, t), torch.where(diagonal, td, r)
 
 
 @torch.no_grad()
@@ -239,7 +270,7 @@ def data_loss(
     if objective == "data_meanflow":
         metrics.update(loss_diagnostics(
             per_sample, weighted, weights, has_valid, gap, correction, is_pad,
-            distributed=distributed,
+            t=t, distributed=distributed,
         ))
     for label, rows in [
         ("low", t < 1 / 3),

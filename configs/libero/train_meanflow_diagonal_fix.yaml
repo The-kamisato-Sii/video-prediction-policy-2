@@ -1,0 +1,5 @@
+_base_: train_meanflow.yaml
+output_dir: runs/libero/meanflow_diagonal_fix_fresh
+meanflow:
+  interval:
+    diagonal_time_sampling: independent

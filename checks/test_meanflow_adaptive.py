@@ -80,6 +80,12 @@ def test_defaults_and_invalid_configs(tmp_path):
 
 
 def _distributed_worker(rank,init_file,out_dir):
+    # Import evaluation dependencies on both ranks before starting the collective
+    # timeout. Cold shared-filesystem imports can otherwise stall only rank zero.
+    import types
+    from test_meanflow import tiny_model
+    from trainer_meanflow import build, Dataset
+    from vpp2.meanflow.model import MeanFlowLibero
     dist.init_process_group('gloo',init_method='file://'+init_file,rank=rank,world_size=2,timeout=timedelta(seconds=45))
     try:
         for baseline in [True,False]:
@@ -100,10 +106,6 @@ def _distributed_worker(rank,init_file,out_dir):
             zeros=torch.zeros(2,2,1)
             data_loss(lambda *args:zeros,lambda *args:zeros,zeros,zeros,
                       torch.zeros(2),torch.zeros(2),loss_weighting='adaptive',distributed=False)
-            import types
-            from test_meanflow import tiny_model
-            from trainer_meanflow import build, Dataset
-            from vpp2.meanflow.model import MeanFlowLibero
             model=tiny_model(MeanFlowLibero)
             model.configure_meanflow(dict(objective='data_meanflow',loss_weighting='adaptive',
                 derivative_backend='jvp',budget_steps=30000,student_init={'format':'baseline_init'},

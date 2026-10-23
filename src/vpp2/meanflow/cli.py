@@ -7,6 +7,7 @@ from pathlib import Path
 
 from omegaconf import OmegaConf
 from .loss_config import loss_settings
+from .experiment_config import interval_settings, validate_interval_objective, direct_action_settings
 
 
 def load_config(path, overrides=()):
@@ -24,6 +25,17 @@ def load_config(path, overrides=()):
 
     cfg = OmegaConf.merge(read(path), OmegaConf.from_dotlist(overrides))
     m = cfg.meanflow
+    validate_interval_objective(m, cfg.benchmark)
+    m.interval = interval_settings(m, cfg.model.action_scheduler.train_shift)
+    if m.objective == "direct_action":
+        m.direct_action = direct_action_settings(m)
+        if m.direct_action.input == "learnable" and (
+            int(cfg.model.action_chunk_size) != 1
+            or m.direct_action.query_length != int(cfg.data.train.action_horizon)
+        ):
+            raise ValueError("Learned queries must match the unchunked action horizon")
+    elif "direct_action" in m:
+        raise ValueError("direct_action settings require the direct_action objective")
     settings = loss_settings(m)
     m.loss_weighting = settings["loss_weighting"]
     m.adaptive_weighting = settings["adaptive_weighting"]
@@ -51,7 +63,7 @@ def load_config(path, overrides=()):
             raise ValueError("Main teacher must use the original 10-step deployment schedule")
     elif m.objective == "direct_action":
         if cfg.benchmark != "libero" or m.derivative_backend != "none":
-            raise ValueError("Direct Action MSE is LIBERO-only and uses no derivative")
+            raise ValueError("Direct Action is LIBERO-only and uses no derivative")
     elif m.derivative_backend not in {"jvp", "finite_difference"}:
         raise ValueError("Data objectives require an explicit derivative backend")
     if m.objective == "kmf" and m.split not in {"learned", "midpoint"}:
@@ -124,6 +136,9 @@ def main():
         action_nfe=1,
         derivative_backend=cfg.meanflow.derivative_backend,
         student_init=OmegaConf.to_container(cfg.meanflow.student_init, resolve=True),
+        interval=OmegaConf.to_container(cfg.meanflow.interval, resolve=True),
+        direct_action=(direct_action_settings(cfg.meanflow)
+                       if cfg.meanflow.objective == "direct_action" else None),
         **loss_settings(cfg.meanflow),
     )
     print(json.dumps(summary, indent=2), flush=True)

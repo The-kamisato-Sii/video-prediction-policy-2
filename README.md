@@ -430,15 +430,15 @@ bash scripts/libero/train_meanflow.sh \
 
 <a id="libero-mf-diagonal-time"></a>
 
-#### 6.1.2 下一项独立消融：对角 FM 样本单独采时间
+#### 6.1.2 独立消融：对角 FM 样本单独采时间（diagonal_fix）
 
-**状态（2026-10-23）：本节为待实现规格，本次仅更新 README，不修改训练代码或启动训练。用户反馈加入 adaptive loss 后训练已恢复正常；这不是本次独立复跑或闭环成功率结论。** 保留当前稳定 adaptive 配方，下一轮只改变对角样本的时间分布。旧的 p=1 / 降 LR 建议降为后续可选消融，不作为必须立即执行的修改。
+**状态（2026-10-23）：已实现独立的 `train_meanflow_diagonal_fix.sh` / `.yaml`；原 `train_meanflow.sh` 仍保留 sorted_max。启动与验证记录见 [one-step 实验说明](docs/libero_one_step.md#oct23-ablations)。这不是新实验的收敛或闭环成功率结论。** 保留当前稳定 adaptive 配方，下一轮只改变对角样本的时间分布。旧的 p=1 / 降 LR 建议降为后续可选消融，不作为必须立即执行的修改。
 
 **为什么改。** 当前 `src/vpp2/meanflow/objectives.py::sample_intervals()` 先对两个独立时间做 shift，再取 `t=max(s1,s2), r=min(s1,s2)`，最后把对角行设成 `r=t`。对角处 `t-r=0`，MF target 的确退化为 FM target `epsilon-action`，但其时间分布仍然是两个 shifted 时间的最大值。这里没有漏掉 shift，也没有改变 FM target 的正确性；它偏离的是“对角时间服从单次 shifted uniform”的实验设计意图。新方案不是声称修复原始 MeanFlow 的数学错误，也不保证效果更好。
 
 采用当前 `clean=0, noise=1` 约定，令 `s(u)=k*u/(1+(k-1)*u)`，其中 `u~Uniform(0,1)`。单次 shifted 时间的 CDF 是 `F(x)=x/(k-(k-1)*x)`，历史对角时间的 CDF 是 `F(x)^2`。在 `k=5` 时，两者中位数分别约为 0.8333 和 0.9235。因此，当前对角 FM 监督额外偏向高噪声；新方案只撤销对角分支中的 max 偏置，非对角区间仍保留排序。adaptive weighting 继续作用于两类样本，所以这里只规定采样分布，不声称两类样本的有效梯度占比各为 50%。
 
-**配置契约（拟新增，尚不可直接用于当前代码）。**
+**配置契约（已实现）。**
 
 ```yaml
 meanflow:
@@ -481,13 +481,13 @@ return t, r
 
 **修改位置与边界。**
 
-| 文件 | 后续实现要求 |
+| 文件 | 实现契约 |
 |---|---|
 | `src/vpp2/meanflow/objectives.py` | 给 `sample_intervals()` 增加缺省为 `sorted_max` 的兼容参数，校验模式、有限正 shift 和 [0,1] 概率，按上述规则实现。保留 `data_loss()`、target detach、JVP 切向量、padding 和 adaptive 公式；现有对角行跳过 JVP 的逻辑不变。 |
 | `src/vpp2/meanflow/model.py` | 从 interval 配置取模式并传入 sampler。保存完整配置；扩展 compact checkpoint 加载校验，避免静默改变 sampler。 |
 | `src/vpp2/meanflow/cli.py` | 规范化历史缺省值，拒绝拼写错误/未支持组合，dry-run 显示 source、模式、比例、实际 train shift。不要仅接受 YAML 字段却未传到 sampler。 |
 | 配置校验 helper 与 `src/vpp2/trainer.py` | 复用同一 sampler 设置解析/比较逻辑，在完整 optimizer/scheduler resume 和 compact checkpoint 加载两条路径验证 sampler 契约。旧 metadata 缺省解释为 `sorted_max`，保留现有 loss 设置校验。 |
-| `configs/libero/train_meanflow.yaml` 与独立实验配置 | 原稳定配方显式保留 `sorted_max`，另建如 `configs/libero/train_meanflow_independent_diagonal.yaml` 继承该配置，仅覆盖模式和输出目录。两份都保留 adaptive。 |
+| `configs/libero/train_meanflow.yaml` 与独立实验配置 | 原稳定配方显式保留 `sorted_max`，另建如 `configs/libero/train_meanflow_diagonal_fix.yaml` 继承该配置，仅覆盖模式和输出目录。两份都保留 adaptive。 |
 | `checks/test_meanflow.py` 或专门 sampler 测试 | 验证旧模式等价、新模式分布、分支边界、JVP 跳过、配置传递、两种 checkpoint 恢复路径。 |
 | `docs/libero_one_step.md` | 实现后补充可运行命令、实际测试与短跑记录，再更新本节状态；不能预先宣称已实现或性能提升。 |
 

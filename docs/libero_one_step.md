@@ -77,6 +77,75 @@ Files:
 
 Use `--dry-run` on either production script to print its resolved global batch, objective, sampler and initialization paths without allocating CUDA. Real-data GPU validation and test results are recorded separately in `docs/validation/libero_one_step.json`.
 
+<a id="oct23-ablations"></a>
+
+## 2026-10-23: diagonal sampling and Direct Action ablations
+
+Each preset inherits the existing production recipe above. Global batch256, accumulation1, LR1e-4, warmup500, cosine30000, save5000, BF16, frozen Video10k, fresh Action/proprio, first-frame uint8 decoding, workers4 and offline W&B are unchanged.
+
+| Production script in `scripts/libero/` | Input / loss | Difference from its control |
+|---|---|---|
+| `train_meanflow_diagonal_fix.sh` | MeanFlow + adaptive p=.5,c=.001 | Only diagonal time: independent shifted-uniform instead of sorted max; diagonal probability remains .5, scheduler shift5 |
+| `train_direct_action_mae.sh` | Zero input / masked MAE | Only MSE → MAE |
+| `train_direct_action_learnable_mae.sh` | Learnable input / masked MAE | Versus zero-input MAE: only input becomes trainable |
+| `train_direct_action_learnable_mse.sh` | Learnable input / masked MSE | Versus original Direct Action MSE: only input becomes trainable |
+
+Configs have the same names under `configs/libero/`, with `.yaml`. `train_meanflow.sh` retains historical `sorted_max`; `train_direct_action.sh` retains zero-input MSE. No existing checkpoint is reclassified as a new experiment.
+
+**Diagonal sampling.** Both endpoints of a diagonal row use one fresh `td=5*u/(1+4*u)`. Off-diagonal max/min sampling, JVP, detached target, adaptive weights and loss reduction are unchanged. The historical branch consumes exactly the old RNG calls; independent mode consumes one additional batch-sized draw. `interval.train_shift` in resolved metadata records the actual action scheduler shift; conflicting values fail validation. Only LIBERO data_meanflow supports independent mode. Compact and full-state resumes reject changed sampler source, probability, mode or actual shift. Missing historical mode means sorted_max; missing shift is recovered from saved resolved config, otherwise resume fails with an explanation.
+
+**Direct regression.** MAE is the mean absolute error over valid normalized-action elements per sample, then the batch mean, preserving the existing padding and all-padded-row reduction. Learned queries are a zero-initialized `nn.Parameter` of shape `[1,32,7]` before the unchanged Action encoder: 224 additional trainable scalars. Each action position has its own query, shared across samples. Initialization preserves the fixed-zero control's input and all shared weights; training, inference and checkpoint reload use the same query parameter. This experiment does not replace the encoder with hidden-dimension query embeddings. Both MAE and MSE still predict clean normalized actions in one forward pass, at timestep1000, with no ODE update.
+
+Submit one experiment per distributed job. On each allocated role, run this same command; choose `METHOD` from the four names in the table (without `train_` / `.sh`):
+
+```bash
+bash -c '
+set -euo pipefail
+cd /inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2
+source scripts/libero/activate_env.sh
+METHOD=meanflow_diagonal_fix
+export WANDB_PROJECT=VPP2-LIBERO
+export RUN_NAME="libero-${METHOD}-${TRAIN_JOB_ID:?}-round${RUNNING_ROUND:-0}"
+bash "scripts/libero/train_${METHOD}.sh"
+'
+```
+
+The launchers automatically use batch32 on 8 GPUs or batch16 on 16 GPUs. Use distinct run names for distinct experiments. No new formal training job is submitted by the validation procedure.
+
+To reproduce the small-batch execution probe on an idle two-GPU notebook (this is **global4**, not the production global256 recipe):
+
+```bash
+source scripts/libero/activate_env.sh
+export PYTHONPATH="$PWD/checks:$PYTHONPATH"
+export NNODES=1 NPROC_PER_NODE=2 NODE_RANK=0 MASTER_ADDR=127.0.0.1 MASTER_PORT=29683
+export VPP2_TRAIN_MODULE=libero_ablation_smoke VPP2_ACCELERATE_CONFIG=configs/libero/accelerate_zero1.yaml
+export VPP2_TORCH_LOAD_MMAP=1 VPP2_VIDEO_DECODE_UINT8=1 OMP_NUM_THREADS=2
+export PYTORCH_ALLOC_CONF=expandable_segments:True VPP2_SMOKE_STEPS=4
+METHOD=direct_action_learnable_mae
+bash scripts/train.sh --benchmark libero --config "configs/libero/train_${METHOD}.yaml" --allow-batch-change \
+  "output_dir=$PWD/runs/libero_debug/${METHOD}-smoke-repeat" overwrite=false \
+  batch_size=2 num_workers=4 log_every=1 eval_every=0 wandb.enabled=true wandb.mode=offline
+```
+
+The probe shortens only the loop after constructing the original 30k scheduler. It saves/reloads the compact checkpoint and runs one action inference on each rank. Query variants additionally require nonzero finite query gradients/updates and identical query parameters across ranks. It writes `smoke_rank0.json` and `smoke_rank1.json`; it intentionally avoids repeatedly serializing the unchanged frozen Video expert. Production save/resume behavior is unchanged.
+
+New MeanFlow diagnostics use global sum/count reductions for diagonal/off-diagonal t means and five-bin counts (edges 0,.2,.4,.6,.8,1; the last bin includes 1), plus gap bins and off-diagonal valid-element correction RMS. Empty groups retain count0 and a zero-valued mean placeholder. Old raw/weighted MSE, weights and correction RMS remain available. Rank-zero-only evaluation performs no training collectives.
+
+CPU/config validation: **79 distinct checks passed** (40 existing MeanFlow/adaptive/launcher checks and 39 new ablation checks). Coverage includes controlled RNG, empirical shifted CDFs, diagonal JVP skipping, padding/MAE gradients, query updates, compact inference reload, full optimizer/scheduler query round trips, sampler resume guards, and 8/16-GPU dry runs from unrelated directories. A cold-import timeout in the existing two-rank test was fixed by importing evaluation dependencies on both ranks before creating the process group; its original 45-second collective timeout remains unchanged, and the rerun passed.
+
+**Full-size GPU validation: all four passed** on notebook `vpp2-one-step-ablations-2h200` (`7afff45e-8a19-40c0-85c1-e4599d9ce4b2`). Two H200, ZeRO1, BF16, real LIBERO data, batch2/GPU, accumulation1 (diagnostic global4), four updates per method; the 30k schedule remained intact. Every run saved a compact checkpoint; both ranks reloaded it and completed exactly one Action forward on a synthetic observation. Learned-query gradients and updates were finite/nonzero and the updated parameters matched exactly across ranks.
+
+| Experiment | Final training loss (different objectives) | Peak allocated GPU memory | Both ranks |
+|---|---:|---:|---|
+| `meanflow_diagonal_fix` | 1.1318 | 49.54 GiB | PASS |
+| `direct_action_mae` | 0.3891 | 45.71 GiB | PASS |
+| `direct_action_learnable_mae` | 0.3891 | 45.71 GiB | PASS |
+| `direct_action_learnable_mse` | 0.2795 | 45.71 GiB | PASS |
+
+The loss values establish finiteness only; MAE, MSE and adaptive MeanFlow losses are not comparable quality metrics. Zero-input MAE additionally saved the full DeepSpeed state. That write included the frozen Video expert and was slow on the shared filesystem; subsequent probes used compact saves. Full optimizer/scheduler query restoration and the following update were checked separately on a small model.
+
+Raw logs, checkpoints, rank reports and offline W&B are under `runs/libero_ablations_validation_20261023/`. Shareable evidence, source hashes and limitations: [`validation/libero_ablations_20261023.json`](validation/libero_ablations_20261023.json). The notebook remains available. This is not a 16-GPU cross-node run, a production batch16/32 memory test, or a LIBERO environment rollout. Short startup tests establish execution and checkpoint compatibility, not convergence or task success; the README's longer 1–2k and closed-loop comparisons remain future experiments.
+
 ## Evaluation after training
 
 The checkpoint records `action_sampler` and its objective. Loading it restores the appropriate one-step inference path. Training diagnostics also use one NFE, and report action L1 plus the method-specific loss.

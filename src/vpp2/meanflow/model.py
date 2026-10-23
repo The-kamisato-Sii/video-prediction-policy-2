@@ -20,6 +20,8 @@ from .objectives import (
 )
 from .teacher import rollout
 from .loss_config import loss_settings, validate_loss_resume
+from .experiment_config import (interval_settings, validate_interval_objective,
+                                direct_action_settings, validate_experiment_resume)
 
 
 def prepare_condition(model, inputs, noise_video, *, joint=False):
@@ -98,6 +100,15 @@ class MeanFlowMixin:
     def configure_meanflow(self, config, provenance, teacher=None):
         self.meanflow_config = dict(config)
         self.meanflow_config.update(loss_settings(config))
+        validate_interval_objective(config, self.meanflow_benchmark)
+        self.meanflow_config["interval"] = interval_settings(config, self.train_action_scheduler.shift)
+        if config["objective"] == "direct_action":
+            direct = direct_action_settings(config)
+            self.meanflow_config["direct_action"] = direct
+            if direct["input"] == "learnable":
+                self.action_expert.enable_direct_action_queries(direct["query_length"])
+            elif hasattr(self.action_expert, "direct_action_queries"):
+                raise ValueError("Cannot configure zero input on an existing learned-query model")
         self.meanflow_provenance = provenance
         self.action_sampler = "direct_action" if config["objective"] == "direct_action" else "meanflow"
         if self.action_sampler == "meanflow":
@@ -149,13 +160,16 @@ class MeanFlowMixin:
         interval = cfg["interval"]
         metrics = {}
         if kind == "direct_action":
-            # Fixed zero action queries; the output is clean normalized action, not velocity.
+            # Shared training/deployment input; output is clean normalized action.
             t = torch.ones(action.shape[0], device=action.device)
             r = torch.zeros_like(t)
             pred = self.predict_action_velocity_with_cache(
-                latents_action=torch.zeros_like(action), timestep_action=t * 1000.0, **condition
+                latents_action=self.action_expert.direct_action_input(action),
+                timestep_action=t * 1000.0, **condition
             )
-            action_loss = masked_per_sample(pred, action, pad)[0].mean()
+            action_loss = masked_per_sample(
+                pred, action, pad, loss_type=cfg["direct_action"]["loss"]
+            )[0].mean()
             metrics["teacher_nfe"] = 0
         elif kind == "teacher_trajectory":
             teacher = self._teacher
@@ -198,6 +212,7 @@ class MeanFlowMixin:
                 action.device,
                 self.train_action_scheduler.shift,
                 interval["diagonal_probability"],
+                interval["diagonal_time_sampling"],
             )
 
             def predict(z, r, t):
@@ -301,6 +316,10 @@ class MeanFlowMixin:
         payload = torch.load(path, map_location="cpu", mmap=True, weights_only=True)
         validate_loss_resume(
             self.meanflow_config, payload.get("meanflow", {}).get("config", {})
+        )
+        validate_experiment_resume(
+            self.meanflow_config, payload.get("meanflow", {}).get("config", {}),
+            resolved_config=payload.get("resolved_config"), checkpoint_path=path,
         )
         if payload.get("meanflow", {}).get("objective") != self.meanflow_config["objective"]:
             raise ValueError(

@@ -14,6 +14,7 @@ meanflow:
     video_checkpoint: weights/libero/video_step010000.pt
   interval:
     source: shifted_uniform
+    diagonal_time_sampling: sorted_max
     diagonal_probability: 0.5
   loss_weighting: adaptive
   adaptive_weighting:

@@ -1712,7 +1712,7 @@ class VPP2(torch.nn.Module):
             )
         )
         if sampler == "direct_action":
-            latents_action = torch.zeros_like(latents_action)
+            latents_action = self.action_expert.direct_action_input(latents_action)
         for step_t_action, step_delta_action in zip(infer_timesteps_action, infer_deltas_action):
             timestep_action = step_t_action.unsqueeze(0).to(
                 dtype=latents_action.dtype, device=self.device

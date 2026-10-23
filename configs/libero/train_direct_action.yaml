@@ -6,6 +6,9 @@ batch_size: 16
 gradient_accumulation_steps: 1
 meanflow:
   objective: direct_action
+  direct_action:
+    loss: mse
+    input: zero
   time_convention: clean0_noise1
   preserve_baseline_trainability: true
   student_init:
