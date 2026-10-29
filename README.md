@@ -63,6 +63,8 @@ global 256，8 步验证峰值 reserved **87.23 GiB**。Video 完整 hash 前后
 
 **当前实现（2026-10-20）：** [LIBERO MeanFlow 自适应 loss 加权](#libero-mf-adaptive-loss)。LIBERO fresh-init MeanFlow 默认使用按样本、停止梯度的 adaptive weighting（p=0.5、c=0.001），保留当前时间采样和 BF16 配方。缺省字段的历史配置仍解释为 uniform；验证记录见 `docs/libero_one_step.md`。
 
+**下一轮实验规格（尚未实现）：** [iMF boundary / 辅助 v-head 两种方案](#libero-imf)，包括目标公式、40 层与 Video KV 接入、adaptive/对角采样控制变量、代码修改与验收。
+
 **LIBERO 数据管线优化实测：** 同机 8×H200、ZeRO1、单卡 batch 32 下，只解码首帧将平均步耗时从 14.20 秒降至约 4.77 秒；workers 4/8/16/20 吞吐相近。完整对照表及运行方法见 **[数据管线性能对照](docs/libero_loader_benchmark.md)**。
 
 **LIBERO 16×H200 启动准备：** 2 个节点，每节点 8 卡，每卡 batch 16、累积 1，
@@ -509,9 +511,139 @@ return t, r
 | D0 / D1（现在） | adaptive + sorted_max 对比 adaptive + independent；其余完全相同 | 验证去掉对角 max 偏置是否改善一步动作和闭环，而非继续证明 loss 能下降。保持当前稳定的 LR 与 p/c。 |
 | D2（条件性） | 在选定模式下，diagonal_probability=0.25/0.5/0.75 | 如果对角局部 FM 学得好、但大 gap/一步输出弱，再检查局部与区间监督的分配。比例也改变 JVP 成本，同时报告相同更新预算及训练耗时；这些比例是项目消融，不冒充论文默认。 |
 | D3（条件性） | 在选定 sampler 下，单独比较 shift=5 与较小 shift（如 1） | 只在时间分桶/固定验证显示噪声区域覆盖失衡时做；shift=1 不等于复现原论文的 logit-normal 配方。不要与 D1 同时改变非对角时间分布。 |
-| D4（之后） | 固定 sampler 后比较原 MF 与 K-MF；或单独测试 teacher 蒸馏 | 一步闭环质量仍不足时再改变目标；adaptive 当前仅支持 data_meanflow，迁移到 K-MF 需单独设计与校验，不能直接打开配置。 |
+| D4（下一轮） | 固定 sampler 和 adaptive，比较原 MF、iMF boundary、iMF 辅助 v-head | 先按[两种 iMF 实现规格](#libero-imf)检验预测速度切向量与额外容量的收益；尚需实现，不可只改 YAML 启动。 |
+| D5（之后） | 单独测试 K-MF 或 teacher 蒸馏 | 一步闭环质量仍不足时再考虑；adaptive 迁移到 K-MF 需单独设计与校验，不能直接打开配置。 |
 
 低学习率、p=1、FP32 JVP 都不是当前必须修改的项目；若 raw 残差、JVP、梯度再次持续异常，再依据诊断单独测试。不要用“加了 adaptive 后训练正常”推断一步性能已等于 10-step FM。先完成稳定 MF 的动作与闭环对照，再进入几何 heads。
+
+<a id="libero-imf"></a>
+
+#### 6.1.3 下一步：iMF boundary 与辅助 v-head 两种方案（实现规格，尚未实现）
+
+**状态与目的（2026-10-29）。** 本节只规定下一轮代码修改和实验，不表示仓库已支持下述 `data_improved_meanflow`、`imf.*` 配置，也不表示已验证性能提升。用户反馈 adaptive 后训练恢复正常；下一步要验证的是：在相同数据、初始化和一步推理预算下，改用模型预测的瞬时速度作为 JVP 方向，是否改善 held-out action 和 LIBERO / LIBERO-PRO 闭环表现。先完成这两种 iMF 对照，再考虑几何 heads。
+
+**来源与范围。** [iMF 论文 §4.1、Algorithm 1、Table 1(a)、Appendix A](https://arxiv.org/html/2512.02012) 提出了两种瞬时速度估计：复用边界预测 `u(z,t,t)`，或添加训练时辅助 v-head；两者都在论文中做了比较。论文表中无 CFG 的 boundary / auxiliary FID 分别为 29.42 / 30.76，固定 CFG 下为 5.97 / 5.68，不能据此认定辅助 head 必然更好，更不能直接推出 action policy 的收益。Figure 3 的稳定性曲线没有 adaptive weighting，不能当成对本仓库“adaptive 已稳定 MF”的直接比较。实现参考：[官方目标函数](https://github.com/Lyy-iiis/imeanflow/blob/main/imf.py)、[官方网络](https://github.com/Lyy-iiis/imeanflow/blob/main/models/imfDiT.py)。下面的 40 层、32+8 分支、padding、Video KV 接入和训练配方是本项目适配，不是论文的原样复现。
+
+**A. 共同数学契约：改的是 JVP 方向，推理仍预测平均速度。**
+
+时间沿用 clean=0、noise=1。令条件 C 包括固定的 Video KV、文本和 proprio，a 为归一化干净动作，epsilon 为噪声；每个 batch 的所有 action 分支共用同一份条件：
+
+$$
+v_c=\epsilon-a,\qquad z_t=(1-t)a+t\epsilon,\qquad 0\le r\le t\le1.
+$$
+
+先得到下面两种方案之一的瞬时速度估计 $\hat v_\theta(z_t,t,C)$，再计算主 u 分支的导数：
+
+$$
+D_\theta=\operatorname{JVP}_{(z,r,t)}
+ u_\theta(z_t,r,t,C)
+ [\operatorname{sg}(\hat v_\theta),0,1],\qquad
+V_\theta=u_\theta(z_t,r,t,C)+(t-r)\operatorname{sg}(D_\theta).
+$$
+
+主损失是 V 对样本速度 vc 的回归。等价实现可以保留当前 target 形式：
+
+$$
+y_u=v_c-(t-r)\operatorname{sg}(D_\theta),\qquad
+E_{u,i}=\frac{\sum_j m_{ij}(u_{ij}-y_{u,ij})^2}{\max(1,\sum_j m_{ij})},\qquad
+w_{u,i}=(\operatorname{sg}(E_{u,i})+c_w)^{-p},\qquad
+L_u=\mathcal R\big(\mathbf1_{\mathrm{valid},i}\,w_{u,i}E_{u,i}\big).
+$$
+
+m 只覆盖有效 action 元素；每样本先做 masked mean，再求权重；本轮保持 **p=0.5、c_w=0.001**。这里的 $\mathcal R$ 必须沿用基线当前 reduction：fresh `baseline_init` 的 `baseline_reduction=True` 为全 batch mean（全 padding 行置零），其余路径沿用现有 distributed valid reduction。不要在迁移 iMF 时顺便修改归约分母。上式写成 target 或 V-loss 给出的残差相同；**仅把 JVP 移到等号另一侧仍是原 MF，必须把切向量 vc 换成预测的 vhat 才是本轮 iMF 改动。**
+
+JVP 中固定 r 和 C，只沿 `(vhat,0,1)` 对 z、r、t 求方向导数；vhat 是已求值的切向量，不能把其计算图嵌入 JVP 再求导。对 D 的结果 stop-gradient，主 u 输出保留梯度，不引入高阶参数导数。继续使用归一化时间；现有 `predict_action_velocity` 内部把 r/t 乘 1000，JVP 应对这个完整 wrapper 求导，不能再手动乘/除 1000。只对非对角行计算 JVP，对角行直接令 D=0。
+
+**B. I1：boundary，复用模型的对角预测（优先实现）。**
+
+$$
+\hat v_\theta(z_t,t,C)=u_\theta(z_t,t,t,C),\qquad L_{I1}=L_u.
+$$
+
+1. 保持原 40 层 Action DiT、输出 u-head、end-time embedding 和 Video KV 交互结构。主预测使用 `(z,r,t,C)` 并保留梯度。
+2. 对非对角行，在固定相同条件下额外计算 `u(z,t,t,C)`，以 no-grad 得到 vhat，再用于主 u 函数的 JVP。这次对角求值**不是**重新采样一个对角训练样本，不改变原来的 r/t 或 batch 对角比例。
+3. 训练 batch 中原本抽到的 r=t 行，其主损失自然退化为 adaptive FM，训练同一个边界预测器。本版本不再为额外对角求值添加一份 FM loss，避免改变监督量。非对角行的 boundary 求值只提供停止梯度的方向。
+4. 无新增可训练参数；“两次调用”指额外边界求值与主分支求值的概念划分，不是精确训练 FLOPs。当前实现把带梯度主预测与无梯度 JVP 求值分开，因此还有 JVP 的 primal 计算。报告实测 step time、显存，不把 I1 称为两次普通 forward 的固定成本。
+
+**C. I2：辅助 v-head，为瞬时速度分配额外容量。**
+
+本项目第一版采用 **共享参数的前 32 blocks + 两条各 8 blocks 的尾部**，原有 u 路径仍为 40 层：
+
+```text
+u 路径：(z,r,t,C) → 原 blocks[0:32] → 原 blocks[32:40] → 原 head → u
+v 路径：(z,t,t,C) → 同一 blocks[0:32] → 独立 aux_v_blocks[0:8] → aux_v_head → vhat
+```
+
+- 新增独立注册的 `aux_v_blocks`（8 层）与 `aux_v_head`，不要把它们 append 到 `action_expert.blocks`；后者始终长 40，避免破坏 MoT 的 video/action 层数匹配。首版在 baseline 权重正确加载后，deep-copy 原尾部 8 blocks 和输出 Linear 初始化辅助尾部；不得共享尾部 Parameter 对象。额外初始化不得改变公共主干、proprio 或后续训练 RNG 状态。
+- 共享 action/text/time 输入模块与前 32 层的**参数**，但首版不复用两个条件不同的 prefix **激活**。现有 `pre_dit` 把 r 的 embedding 注入所有 blocks，因此 `(z,r,t)` 的 prefix 不能冒充 `(z,t,t)` 的 prefix。v 路径显式使用 r=t，以保证 vhat 不依赖此次抽取的 r。这是保守、易验证的项目设计；如果以后要一次共享 prefix forward，须另行设计仅依赖 t 的 prefix，并作为结构消融，不能悄悄修改 I2。
+- 两条路径复用 `prepare_condition()` 生成的同一份冻结 Video cache，不重新跑 Video。辅助 block j 使用原 action 层 `32+j` 对应的 Video KV；保留 `_video_source_layer` 的映射和已有 attention mask、RoPE、context 规则，不新增 Video 层。启用 `use_video_tokens` 时，首版共享原层 `32+j` 的 token/KV projection 参数并正确复用其逻辑；主对照保持该开关和其他 conditioning 开关与基线一致。
+- v 路径对全 batch 计算一次，保留梯度以接受独立 FM 监督；将同一输出的 detach 版本作为非对角 JVP 的方向。JVP 只作用于主 u 路径，不同时对辅助输出求 JVP。两分支共享参数的梯度正常相加。
+
+$$
+E_{v,i}=\operatorname{maskedMean}_{j}\!\left[(\hat v_{ij}-v_{c,ij})^2\right],\qquad
+w_{v,i}=(\operatorname{sg}(E_{v,i})+c_w)^{-p},\qquad
+L_v=\mathcal R(\mathbf1_{\mathrm{valid},i}\,w_{v,i}E_{v,i}),\qquad
+L_{I2}=L_u+\lambda_vL_v,\quad\lambda_v=1.
+$$
+
+两项**分别**计算自适应权重，再相加；不能用 `(E_u+E_v)` 计算共同权重，也不能用主分支的权重给辅助项加权。Lv 监督所有有效样本，包括对角和非对角，不仅是 r=t 行。不能省略 Lv：停止梯度的 JVP 本身不会给辅助尾部提供学习信号。这里继续使用本仓库 masked mean 和 p/c，避免同时改变 loss 尺度。新增尾部使训练参数增加，且本方案需重新执行不同时间条件的 prefix，**不预设训练比 I1 更快**。
+
+**D. 两者的一步推理完全相同。**
+
+$$
+\hat a=\epsilon-u_\theta(\epsilon,0,1,C).
+$$
+
+推理只执行原 40 层 u 路径，`action_sampler: meanflow`、`action_nfe: 1`；不执行边界求值、JVP、辅助 v 分支或 FM solver。这是 action 的 1-NFE，Video prefill 仍存在，须同时报告 action-only 与端到端时延。保持原动作归一化/反归一化、chunk、执行步数和控制频率。
+
+**E. 配置与代码修改契约（以下字段和文件名均为待实现）。**
+
+建议新增 `configs/libero/train_imf_boundary.yaml`，继承现有 `train_meanflow.yaml`；YAML 必须按现有 loader 深合并，保留初始化、interval 和 adaptive 配置：
+
+```yaml
+_base_: train_meanflow.yaml
+output_dir: runs/libero/imf_boundary_fresh
+meanflow:
+  objective: data_improved_meanflow
+  imf:
+    variant: boundary
+```
+
+建议新增 `train_imf_auxiliary.yaml`，同样继承 `train_meanflow.yaml`，覆盖独立输出目录及：
+
+```yaml
+_base_: train_meanflow.yaml
+output_dir: runs/libero/imf_auxiliary_fresh
+meanflow:
+  objective: data_improved_meanflow
+  imf:
+    variant: auxiliary
+    auxiliary_depth: 8
+    auxiliary_loss_weight: 1.0
+```
+
+首轮三组 MF / I1 / I2 显式使用相同 `shifted_uniform`、`sorted_max`、diagonal_probability=0.5、实际 action train_shift=5。若决定使用已实现的 `independent`，则为**三组全部**建立同模式配置，不把 MF/sorted_max 与 iMF/independent 的差异归因于 iMF。维持现有 LR=1e-4、warmup=500、30k schedule、global batch=256、BF16、JVP backend 和相同 Action/proprio 初始化及冻结 Video-10k；不同时引入 CFG、K-MF、几何、JVP clipping、FP32 JVP 或改 LR。硬件不足时可调整 microbatch/累积但匹配 global batch，并记录差异。
+
+| 修改位置 | 必须实现和检查的行为 |
+|---|---|
+| `src/vpp2/meanflow/objectives.py` | 新增独立 iMF loss 或明确 objective 分支，接收 predicted-v 回调；沿用 masking、adaptive 和 reduction。I1/I2 共享主目标，I2 增加独立加权 Lv。旧 MF/K-MF 数学路径不变，不能只放开枚举却仍传 vc 给 JVP。 |
+| `src/vpp2/meanflow/model.py` | 配置 variant；每 batch 一次 prepare_condition；沿用 condition slicing 与 derivative_mode。边界求值和 JVP 使用正确时间条件；辅助预测保留训练图，JVP 内仅用 detach 方向。derivative_mode 退出后必须恢复 checkpointing 等开关。 |
+| `src/vpp2/models/wan21_14b/action_dit.py`、`mot.py` | I1 不改网络。I2 单独注册辅助尾部、输出 head，抽取/复用层范围执行逻辑，保留原 40 层主路径及 KV 层索引。构建辅助模块必须早于 optimizer / DDP / ZeRO 包装，并纳入参数组；检查共享模块不被重复计入 optimizer。 |
+| `src/vpp2/meanflow/cli.py`、`experiment_config.py`、`loss_config.py` | 显式接入新 objective，允许 LIBERO 对应初始化下的 adaptive 和两种已支持的 interval 模式；拒绝未知 variant、非法 depth/权重和未支持组合。首版 auxiliary_depth 固定为 8。dry-run 展示解析后的 objective、variant、p/c、sampler、实际 shift、主/辅助层数、训练参数量及推理 NFE。不能误放开其他未验证 objectives。 |
+| `src/vpp2/trainer.py`、`meanflow/model.py` checkpoint 路径、`src/vpp2/libero/action_model.py` | 完整与 compact checkpoint 都记录 objective、variant、辅助结构/初始化、lambda_v、loss、sampler、父初始化及代码版本；加载时先按 metadata 建模块再 strict load。普通 resume 禁止 MF↔iMF、I1↔I2 或 lambda_v/结构静默切换；历史 checkpoint 无 iMF 字段仍是原 MF。若另做去辅助参数的部署导出，须显式 artifact 类型和允许键列表，不可用全局 strict=False 掩盖缺失。 |
+| `configs/libero/`、`scripts/libero/`、`docs/libero_one_step.md` | 增加独立 I1/I2 配置和启动入口，使用独立目录。实现并验证后再补可执行命令和记录、更新本节状态；本次文档提交不提供声称已可运行的命令。 |
+| `checks/test_meanflow.py` 及对应模型/恢复测试 | 覆盖下面验收项，不需要为纯文档提交运行 GPU 训练。 |
+
+**F. 验收、诊断与实验顺序。**
+
+1. **数学与梯度。** 用解析 toy 函数 `u(z,r,t)=Az+br+dt` 验证 JVP 为 `A*vhat+d`，r 切向量为 0，并覆盖内部时间缩放。替换 vhat=vc 时主残差应回到旧 MF；r=t 时严格退化为 adaptive masked FM，完全跳过 JVP。确认 u 有梯度，D/权重不反传高阶梯度；I2 的辅助尾部由 Lv 获得非零梯度，关闭 Lv 后不应通过 detached correction 获得梯度。
+2. **结构与兼容性。** 启用辅助头前后，初始主 u 输出在固定输入下相同；aux 权重是数值拷贝、独立存储。检查两条路径都按原 40 个层索引取条件，Video 只 prefill 一次；改变 sampled r 不应改变同一 `(z,t,C)` 的 vhat。实际推理 hook 确认只调用 40 层 u 路径且辅助路径调用数为零。
+3. **padding、分布式与恢复。** 覆盖全部对角/全部非对角、局部 rank 无非对角、全 padding、不同有效 horizon，确保无 NaN 或 collective 挂起。所有 rank 的归约调用顺序一致；rank-zero eval 不进入训练 all_reduce。完整 optimizer/scheduler 恢复与 compact save/load 都 round-trip 校验，错误 variant/结构/sampler 必须报错；旧配置和旧 MF 输出仍兼容。
+4. **分开记录损失。** 保留主目标 raw/weighted MSE、权重分布、对角/非对角分组、非对角 correction RMS、t/gap 分桶、preclip grad norm。I2 额外记录 Lv raw/weighted MSE、vhat RMS、共享 prefix / u-tail / v-tail 梯度；I1 可记录 detached boundary FM 误差用于诊断但不加入训练 loss。I2 总 loss 多一项，不可直接与 MF/I1 的总 loss 数字比较。
+5. **先小验证，再匹配训练。** 先 math/CPU 测试和两 rank 短跑、恢复、一步推理 smoke；再按原 30k schedule 运行 1–2k 更新诊断（通过停止机制结束，不把 scheduler 总步数缩成 2k）。MF、I1、I2 从相同初始化开始，保存相同步数 checkpoint。现有 MF run 若 sampler/预算不匹配，需补匹配对照，不能直接拼表。
+6. **质量与成本分别报告。** 固定 held-out 样本和评测噪声 seed，报告一步 action L1/MSE、各动作维度和统一闭环子集；候选按相同协议完成 LIBERO、LIBERO-PRO、每任务成功率及多 seeds。记录训练更新数、有效 batch、耗时、显存、参数量、action-only/端到端推理延迟。I2 增加训练容量，必要时补等 GPU-hours 对照；一步 action 误差和训练 loss 均不能替代闭环成功率。
+
+**最终要回答的三个问题：** I1 是否在现有稳定 adaptive MF 上带来一步闭环收益；I2 的额外瞬时速度建模容量是否在相同推理成本下进一步获益；这种收益是否值得其训练成本，并能在 LIBERO-PRO 泛化中保持。若两种 iMF 都无收益，应保留已稳定 MF，并据诊断决定下一项实验，不预设 iMF 必然胜出。
 
 #### 6.2 K-MF（K0 主方案，K1 中点对照）
 
