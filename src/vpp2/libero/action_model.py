@@ -66,6 +66,12 @@ class LiberoActionModel(VPP2):
             self.action_sampler = payload["meanflow"].get("action_sampler", "meanflow")
             if self.action_sampler == "meanflow":
                 self.action_expert.enable_meanflow()
+                config = payload["meanflow"].get("config", {})
+                if config.get("objective") == "data_improved_meanflow":
+                    from vpp2.meanflow.experiment_config import imf_settings
+                    imf = imf_settings(config)
+                    if imf["variant"] == "auxiliary":
+                        self.action_expert.enable_aux_v(imf["auxiliary_depth"])
             elif self.action_sampler == "direct_action":
                 from vpp2.meanflow.experiment_config import direct_action_settings
                 direct = direct_action_settings(payload["meanflow"].get("config", {}))

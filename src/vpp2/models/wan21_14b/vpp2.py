@@ -1431,6 +1431,7 @@ class VPP2(torch.nn.Module):
         clean_first_frame_video_seq_len: Optional[int] = None,
         clean_first_frame_start_layer: Optional[int] = None,
         timestep_end: Optional[torch.Tensor] = None,
+        action_branch: str = "u",
     ) -> torch.Tensor:
         action_pre = self.action_expert.pre_dit(
             action_tokens=latents_action,
@@ -1460,7 +1461,10 @@ class VPP2(torch.nn.Module):
             action_clean_first_frame_conditioning_mask=self._build_action_clean_first_frame_conditioning_mask(
                 timestep_action
             ),
+            action_branch=action_branch,
         )
+        if action_branch == "aux_v":
+            return self.action_expert.aux_v_head(action_tokens)
         return self.action_expert.post_dit(action_tokens, action_pre)
 
     @torch.no_grad()

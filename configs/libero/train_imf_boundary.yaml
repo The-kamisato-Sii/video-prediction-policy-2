@@ -1,0 +1,6 @@
+_base_: train_meanflow_diagonal_fix.yaml
+output_dir: runs/libero/imf_boundary_fresh
+meanflow:
+  objective: data_improved_meanflow
+  imf:
+    variant: boundary

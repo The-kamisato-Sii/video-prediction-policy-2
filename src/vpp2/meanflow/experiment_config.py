@@ -28,12 +28,43 @@ def interval_settings(config, train_shift=None):
 def validate_interval_objective(config, benchmark):
     interval = interval_settings(config)
     if interval["diagonal_time_sampling"] == "independent" and not (
-        benchmark == "libero" and config.get("objective") == "data_meanflow"
+        benchmark == "libero" and config.get("objective") in {"data_meanflow", "data_improved_meanflow"}
         and interval["source"] == "shifted_uniform"
     ):
         raise ValueError("independent diagonal sampling requires LIBERO data_meanflow shifted_uniform")
-    if config.get("objective") in {"data_meanflow", "kmf"} and interval["source"] != "shifted_uniform":
+    if config.get("objective") in {"data_meanflow", "data_improved_meanflow", "kmf"} and interval["source"] != "shifted_uniform":
         raise ValueError("Data interval sampling requires source=shifted_uniform")
+    if config.get("objective") == "data_improved_meanflow":
+        if benchmark != "libero" or config.get("student_init", {}).get("format") != "baseline_init":
+            raise ValueError("iMF requires LIBERO baseline_init")
+        if config.get("derivative_backend") != "jvp":
+            raise ValueError("iMF requires the validated JVP backend")
+        imf_settings(config)
+    elif "imf" in config:
+        raise ValueError("imf settings require data_improved_meanflow")
+
+
+def imf_settings(config):
+    raw = dict(config.get("imf", {}))
+    variant = raw.get("variant")
+    if variant not in {"boundary", "auxiliary"}:
+        raise ValueError("iMF variant must be boundary or auxiliary")
+    allowed = {"variant"} if variant == "boundary" else {
+        "variant", "auxiliary_depth", "auxiliary_loss_weight", "initialization"}
+    if set(raw) - allowed:
+        raise ValueError("Unknown or incompatible iMF settings")
+    if variant == "boundary":
+        return dict(variant=variant)
+    depth = raw.get("auxiliary_depth", 8)
+    weight = raw.get("auxiliary_loss_weight", 1.0)
+    if isinstance(depth, bool) or depth != 8:
+        raise ValueError("First iMF auxiliary implementation requires depth=8")
+    if isinstance(weight, bool) or not math.isfinite(float(weight)) or float(weight) <= 0:
+        raise ValueError("iMF auxiliary_loss_weight must be finite and positive")
+    init = raw.get("initialization", "copy_u_tail")
+    if init != "copy_u_tail":
+        raise ValueError("iMF auxiliary initialization must be copy_u_tail")
+    return dict(variant=variant, auxiliary_depth=8, auxiliary_loss_weight=float(weight), initialization=init)
 
 
 def direct_action_settings(config):
@@ -74,7 +105,9 @@ def validate_experiment_resume(current, saved, *, resolved_config=None, checkpoi
         raise ValueError("Resume objective differs; start a separate experiment")
     if objective == "direct_action":
         a, b = direct_action_settings(current), direct_action_settings(saved)
-    elif objective in {"data_meanflow", "kmf"}:
+    elif objective in {"data_meanflow", "data_improved_meanflow", "kmf"}:
+        if objective == "data_improved_meanflow" and imf_settings(current) != imf_settings(saved):
+            raise ValueError("iMF variant/structure/loss differs on resume")
         a, b = interval_settings(current), interval_settings(saved)
         if "train_shift" in a and "train_shift" not in b:
             shift = _historical_shift(resolved_config, checkpoint_path)

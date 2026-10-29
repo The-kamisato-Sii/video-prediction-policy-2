@@ -279,3 +279,68 @@ def data_loss(
     ]:
         metrics[f"correction_norm_{label}"] = correction.detach()[rows].norm()
     return policy_loss + alpha * gen_loss, metrics
+
+
+def improved_data_loss(predict, derivative, predict_v, clean, noise, r, t, is_pad=None,
+                       *, auxiliary=False, auxiliary_loss_weight=1.0,
+                       baseline_reduction=True, loss_weighting="adaptive",
+                       adaptive_power=0.5, adaptive_c=0.001, distributed=True):
+    """iMF Eq.12: the JVP direction is a predicted marginal velocity, not noise-data.
+
+    predict_v(z,t,rows) returns selected rows. Boundary is evaluated without a
+    graph only off diagonal; auxiliary predicts every row once with a graph.
+    Direction and JVP are detached; auxiliary supervision has its own weighting.
+    """
+    loss_settings(dict(loss_weighting=loss_weighting,
+                       adaptive_weighting=dict(power=adaptive_power, c=adaptive_c)))
+    vc = noise.float() - clean.float()
+    gap = t - r
+    z = (clean.float() + expand_time(t, clean) * vc).to(clean)
+    pred = predict(z, r, t)
+    active = gap > 0
+    direction = torch.zeros_like(vc)
+    vp = None
+    if auxiliary:
+        vp = predict_v(z, t, torch.ones_like(active))
+        direction = vp.detach().float()
+    elif active.any():
+        with torch.no_grad():
+            direction[active] = predict_v(z, t, active).detach().float()
+    d = torch.zeros_like(vc)
+    if active.any():
+        d[active] = derivative(z, r, t, direction.detach(), active).detach()
+    correction = expand_time(gap, vc) * d
+    target = (vc - correction).detach()
+
+    def weighted_loss(prediction, target):
+        error, valid = masked_per_sample(prediction, target, is_pad)
+        weight = ((error.detach() + adaptive_c).pow(-adaptive_power)
+                  if loss_weighting == "adaptive" else torch.ones_like(error))
+        weighted = torch.where(valid, weight * error, 0.0)
+        loss = weighted.mean() if baseline_reduction else reduce_valid(weighted, valid, distributed)
+        return loss, error, weighted, weight, valid
+
+    lu, error, weighted, weight, valid = weighted_loss(pred, target)
+    metrics = loss_diagnostics(error, weighted, weight, valid, gap, correction, is_pad,
+                               t=t, distributed=distributed)
+    metrics.update(loss_policy=lu.detach(), **{"imf/loss_u": lu.detach()})
+    lv = lu.new_zeros(())
+    if auxiliary:
+        lv, ve, vw, weights_v, vv = weighted_loss(vp, vc.detach())
+        vm = loss_diagnostics(ve, vw, weights_v, vv, gap, torch.zeros_like(vc), is_pad,
+                              t=t, distributed=distributed)
+        metrics.update({"imf/v/" + k.removeprefix("mf/"): v for k, v in vm.items()})
+    # Fixed collectives on every rank, including all-diagonal/all-padding ranks.
+    diagnostic_rows = valid if auxiliary else valid & active
+    direction_error, _ = masked_per_sample(direction, vc, is_pad)
+    mask = valid_elements(vc, is_pad) & expand_time(diagnostic_rows, vc)
+    sums = torch.stack([torch.where(diagnostic_rows, direction_error, 0).sum(),
+                        diagnostic_rows.sum(), torch.where(mask, direction.square(), 0).sum(),
+                        mask.sum()]).float()
+    if distributed and torch.distributed.is_available() and torch.distributed.is_initialized():
+        torch.distributed.all_reduce(sums)
+    metrics.update({"imf/loss_v": lv.detach(), "imf/vhat_mse": sums[0]/sums[1].clamp_min(1),
+                    "imf/vhat_rms": (sums[2]/sums[3].clamp_min(1)).sqrt(),
+                    "imf/vhat_samples": sums[1], "correction_norm": correction.norm(),
+                    "derivative_norm": d.norm()})
+    return lu + auxiliary_loss_weight * lv, metrics

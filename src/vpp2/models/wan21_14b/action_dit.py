@@ -1,4 +1,5 @@
 import os
+import copy
 import torch
 import torch.nn as nn
 from typing import Any, Dict, Optional
@@ -186,6 +187,17 @@ class ActionDiT(nn.Module):
         ).to(device=ref.device, dtype=ref.dtype)
         nn.init.zeros_(self.time_end_embedding[-1].weight)
         nn.init.zeros_(self.time_end_embedding[-1].bias)
+
+    def enable_aux_v(self, depth=8):
+        """Copy the initialized u tail, without changing shared weights or RNG."""
+        if depth != 8 or len(self.blocks) != 40:
+            raise ValueError("iMF auxiliary requires a 40-layer u path and an 8-layer v tail")
+        if hasattr(self, "aux_v_blocks"):
+            if len(self.aux_v_blocks) != depth:
+                raise ValueError("Existing auxiliary depth differs")
+            return
+        self.aux_v_blocks = copy.deepcopy(self.blocks[-depth:])
+        self.aux_v_head = copy.deepcopy(self.head)
 
     def encode_video_tokens(self, video_tokens: torch.Tensor) -> torch.Tensor:
         """Compress frozen Wan video features before action-owned K/V projections."""

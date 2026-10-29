@@ -520,7 +520,32 @@ return t, r
 
 #### 6.1.3 下一步：iMF boundary 与辅助 v-head 两种方案（实现规格，尚未实现）
 
-**状态与目的（2026-10-29）。** 本节只规定下一轮代码修改和实验，不表示仓库已支持下述 `data_improved_meanflow`、`imf.*` 配置，也不表示已验证性能提升。用户反馈 adaptive 后训练恢复正常；下一步要验证的是：在相同数据、初始化和一步推理预算下，改用模型预测的瞬时速度作为 JVP 方向，是否改善 held-out action 和 LIBERO / LIBERO-PRO 闭环表现。先完成这两种 iMF 对照，再考虑几何 heads。
+**状态与目的（2026-10-29）。** 已实现 `data_improved_meanflow` 的 boundary / auxiliary 两个版本；数学、梯度、checkpoint 与双进程同步测试通过。本次 79 项测试通过，另通过双进程不均匀 diagonal/padding 同步，以及两个版本的小型 40 层模型 BF16 + ZeRO-1 训练/完整状态续训。真实规模 H200 验证和收敛收益仍待排队任务验证，不能把实现通过测试等同于效果提升。用户反馈 adaptive 后训练恢复正常；下一步要验证的是：在相同数据、初始化和一步推理预算下，改用模型预测的瞬时速度作为 JVP 方向，是否改善 held-out action 和 LIBERO / LIBERO-PRO 闭环表现。先完成这两种 iMF 对照，再考虑几何 heads。
+
+**当前启动方法。** 在启智每个节点执行同一条命令；自动读取 `PET_*` 拓扑。16 GPU 时每卡 batch=16、global=256、累积=1；保留 ZeRO-1、BF16、LR=1e-4、warmup=500、cosine/30k、每 5k 保存、每 200 step action diagnostic、4 workers、首帧解码及 uint8 路径、离线 W&B。初始化仍为 fresh Action + 冻结 Video-10k，**不续训旧 MF-30k**。
+
+```bash
+cd /inspire/hdd3/project/embodied-model/linbokai-CZXS24250037/video-prediction-policy-2
+source scripts/libero/activate_env.sh  # 激活 ../miniconda/envs/vpp2
+export WANDB_PROJECT=VPP2-LIBERO
+# 复用边界速度：
+bash scripts/libero/train_imf_boundary.sh
+# 辅助 v-head（作为另一个独立任务执行）：
+bash scripts/libero/train_imf_auxiliary.sh
+```
+
+排队任务会先在所获分布式资源上执行 `scripts/libero_debug/smoke_imf.sh imf_boundary` 或 `imf_auxiliary`：10 个真实更新、单卡 batch=16、30k scheduler，检查分支梯度、compact reload、一次 action forward 推理及 rank-0 evaluator；全部通过才启动对应正式脚本。短跑使用独立 `*-smoke` 目录，不把短跑参数或 optimizer 带入正式实验。真实规模 smoke 未通过时脚本立即失败，不自动降 batch、改精度或改 loss。该 10-step 检查不代表已完成下文建议的 1–2k 收敛诊断，后者须在训练进展后检查。
+
+```bash
+# 不占 GPU 的公式、模型、恢复和两节点启动参数检查
+source scripts/libero/activate_env.sh
+OMP_NUM_THREADS=2 python -m pytest -q checks/test_improved_meanflow.py
+OMP_NUM_THREADS=2 python -m torch.distributed.run --standalone --nproc_per_node=2 checks/ddp_improved_meanflow.py
+# 仅解析实际节点拓扑/超参数，不加载权重
+bash scripts/libero/train_imf_auxiliary.sh --dry-run
+```
+
+训练同时记录主目标原始/加权误差 `mf/*`、辅助目标 `imf/v/*`、`imf/vhat_mse` / `imf/vhat_rms` 以及 `imf/local_pre_reduce_grad_norm_{shared,u_tail,v_tail}`。最后一组是各 rank 本地、归约前的梯度范数，再对 ranks 求平均，不能当作全局 clip norm。辅助版总 loss 包含两个目标，跨方法仍比较相同 action diagnostic/L1 和闭环 SR。辅助版增加训练参数和计算，属于相同主干/推理预算的容量实验，不是参数量完全相同的实验。
 
 **来源与范围。** [iMF 论文 §4.1、Algorithm 1、Table 1(a)、Appendix A](https://arxiv.org/html/2512.02012) 提出了两种瞬时速度估计：复用边界预测 `u(z,t,t)`，或添加训练时辅助 v-head；两者都在论文中做了比较。论文表中无 CFG 的 boundary / auxiliary FID 分别为 29.42 / 30.76，固定 CFG 下为 5.97 / 5.68，不能据此认定辅助 head 必然更好，更不能直接推出 action policy 的收益。Figure 3 的稳定性曲线没有 adaptive weighting，不能当成对本仓库“adaptive 已稳定 MF”的直接比较。实现参考：[官方目标函数](https://github.com/Lyy-iiis/imeanflow/blob/main/imf.py)、[官方网络](https://github.com/Lyy-iiis/imeanflow/blob/main/models/imfDiT.py)。下面的 40 层、32+8 分支、padding、Video KV 接入和训练配方是本项目适配，不是论文的原样复现。
 
@@ -622,7 +647,7 @@ meanflow:
     auxiliary_loss_weight: 1.0
 ```
 
-首轮三组 MF / I1 / I2 显式使用相同 `shifted_uniform`、`sorted_max`、diagonal_probability=0.5、实际 action train_shift=5。若决定使用已实现的 `independent`，则为**三组全部**建立同模式配置，不把 MF/sorted_max 与 iMF/independent 的差异归因于 iMF。维持现有 LR=1e-4、warmup=500、30k schedule、global batch=256、BF16、JVP backend 和相同 Action/proprio 初始化及冻结 Video-10k；不同时引入 CFG、K-MF、几何、JVP clipping、FP32 JVP 或改 LR。硬件不足时可调整 microbatch/累积但匹配 global batch，并记录差异。
+本轮明确以已完成的 **MF + adaptive + diagonal-fix（D1）** 为对照，MF / I1 / I2 全部使用 `shifted_uniform`、`independent`、diagonal_probability=0.5、实际 action train_shift=5；I1/I2 配置直接继承 `train_meanflow_diagonal_fix.yaml`。不把早期 MF/sorted_max 与本轮 iMF/independent 的差异归因于 iMF。维持现有 LR=1e-4、warmup=500、30k schedule、global batch=256、BF16、JVP backend 和相同 Action/proprio 初始化及冻结 Video-10k；不同时引入 CFG、K-MF、几何、JVP clipping、FP32 JVP 或改 LR。硬件不足时可调整 microbatch/累积但匹配 global batch，并记录差异。
 
 | 修改位置 | 必须实现和检查的行为 |
 |---|---|

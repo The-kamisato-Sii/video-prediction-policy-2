@@ -7,7 +7,7 @@ from pathlib import Path
 
 from omegaconf import OmegaConf
 from .loss_config import loss_settings
-from .experiment_config import interval_settings, validate_interval_objective, direct_action_settings
+from .experiment_config import interval_settings, validate_interval_objective, direct_action_settings, imf_settings
 
 
 def load_config(path, overrides=()):
@@ -40,13 +40,13 @@ def load_config(path, overrides=()):
     m.loss_weighting = settings["loss_weighting"]
     m.adaptive_weighting = settings["adaptive_weighting"]
     if m.loss_weighting == "adaptive" and not (
-        cfg.benchmark == "libero" and m.objective == "data_meanflow"
+        cfg.benchmark == "libero" and m.objective in {"data_meanflow", "data_improved_meanflow"}
         and m.student_init.format == "baseline_init"
     ):
         raise ValueError("Adaptive weighting requires LIBERO data_meanflow baseline_init")
     if cfg.benchmark not in {"robodojo", "libero"}:
         raise ValueError("Unknown benchmark")
-    if m.objective not in {"teacher_trajectory", "data_meanflow", "kmf", "direct_action"}:
+    if m.objective not in {"teacher_trajectory", "data_meanflow", "data_improved_meanflow", "kmf", "direct_action"}:
         raise ValueError("Unsupported objective; hybrid must be a separate explicit experiment")
     if (
         m.time_convention != "clean0_noise1"
@@ -139,8 +139,31 @@ def main():
         interval=OmegaConf.to_container(cfg.meanflow.interval, resolve=True),
         direct_action=(direct_action_settings(cfg.meanflow)
                        if cfg.meanflow.objective == "direct_action" else None),
+        imf=(imf_settings(cfg.meanflow) if cfg.meanflow.objective == "data_improved_meanflow" else None),
+        action_layers=int(cfg.model.action_dit_config.num_layers),
+        auxiliary_layers=(8 if cfg.meanflow.get("imf", {}).get("variant") == "auxiliary" else 0),
+        action_train_shift=float(cfg.model.action_scheduler.train_shift),
         **loss_settings(cfg.meanflow),
     )
+    if cfg.meanflow.objective == "data_improved_meanflow":
+        import torch
+        from vpp2.models.wan21_14b.action_dit import ActionDiT
+        # Meta construction counts the actual modules without allocating weights
+        # or changing the initialization RNG of the subsequent training run.
+        with torch.random.fork_rng(devices=[]), torch.device("meta"):
+            action = ActionDiT(**OmegaConf.to_container(cfg.model.action_dit_config, resolve=True))
+            action.enable_meanflow()
+            u_count = sum(p.numel() for p in action.parameters())
+            if summary["imf"]["variant"] == "auxiliary":
+                action.enable_aux_v()
+            total_count = sum(p.numel() for p in action.parameters())
+        summary.update(u_action_parameters=u_count, action_parameters=total_count,
+                       auxiliary_parameters=total_count-u_count)
+        proprio_count = (int(cfg.model.action_dit_config.text_dim) * (int(cfg.model.proprio_dim) + 1)
+                         if cfg.model.get("proprio_dim") else 0)
+        summary.update(proprio_parameters=proprio_count,
+                       trainable_parameters=total_count+proprio_count)
+        del action
     print(json.dumps(summary, indent=2), flush=True)
     if args.dry_run:
         return

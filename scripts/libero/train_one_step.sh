@@ -5,9 +5,10 @@ repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$repo"
 method="${1:?Specify a one-step experiment name}"
 shift
-case "$method" in meanflow|direct_action|meanflow_diagonal_fix|direct_action_mae|direct_action_learnable_mae|direct_action_learnable_mse) ;; *) echo "Unknown method: $method" >&2; exit 2 ;; esac
+case "$method" in imf_boundary|imf_auxiliary|meanflow|direct_action|meanflow_diagonal_fix|direct_action_mae|direct_action_learnable_mae|direct_action_learnable_mse) ;; *) echo "Unknown method: $method" >&2; exit 2 ;; esac
 source "$repo/scripts/libero/topology.sh" "$@"
 export VPP2_TRAIN_MODULE=vpp2.meanflow.cli
+export VPP2_CODE_REVISION="$(git rev-parse HEAD)"
 export VPP2_ACCELERATE_CONFIG=configs/libero/accelerate_zero1.yaml
 export VPP2_TORCH_LOAD_MMAP=1 VPP2_VIDEO_DECODE_UINT8=1 OMP_NUM_THREADS=2
 export PYTORCH_ALLOC_CONF="${PYTORCH_ALLOC_CONF:-expandable_segments:True}"

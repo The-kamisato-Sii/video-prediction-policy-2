@@ -457,6 +457,7 @@ class MoT(nn.Module):
         clean_first_frame_start_layer: Optional[int] = None,
         action_video_conditioning_mask: Optional[torch.Tensor] = None,
         action_clean_first_frame_conditioning_mask: Optional[torch.Tensor] = None,
+        action_branch: str = "u",
     ) -> torch.Tensor:
         """Run action branch with cached video K/V instead of recomputing video tokens.
 
@@ -658,6 +659,10 @@ class MoT(nn.Module):
         )
 
         expert = self.mixtures["action"]
+        if action_branch not in {"u", "aux_v"}:
+            raise ValueError("Unknown action branch")
+        if action_branch == "aux_v" and not hasattr(expert, "aux_v_blocks"):
+            raise ValueError("Auxiliary v blocks have not been constructed")
         x = action_tokens
         has_materialized_action_kv = self.use_video_tokens and all(
             "action_k" in layer_cache and "action_v" in layer_cache
@@ -678,7 +683,10 @@ class MoT(nn.Module):
                     source_cache["tokens"]
                 )
         for layer_idx in range(self.num_layers):
-            block = expert.blocks[layer_idx]
+            # Preserve original layer indices for all Video KV/projection paths.
+            prefix = self.num_layers - len(expert.aux_v_blocks) if action_branch == "aux_v" else self.num_layers
+            block = (expert.blocks[layer_idx] if layer_idx < prefix
+                     else expert.aux_v_blocks[layer_idx - prefix])
             # Action query/key/value are still step-dependent and must be recomputed each step.
             (
                 q_action,

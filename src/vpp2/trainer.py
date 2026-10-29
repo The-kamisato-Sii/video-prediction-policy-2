@@ -699,6 +699,8 @@ class JointTrainer:
         model = self.accelerator.unwrap_model(self.model)
         if hasattr(model, "meanflow_config"):
             payload["meanflow_config"] = model.meanflow_config
+            if model.meanflow_config.get("objective") == "data_improved_meanflow":
+                payload["meanflow_implementation"] = model.meanflow_metadata(self.global_step)["implementation"]
         with open(state_file, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=True, indent=2)
 
@@ -994,6 +996,8 @@ class JointTrainer:
                         active = self.accelerator.reduce(active, reduction="sum")
                         self._meanflow_generator_active = bool(active.item())
                     self.accelerator.backward(loss)
+                    if hasattr(unwrapped, "consume_imf_gradient_metrics"):
+                        loss_dict.update(unwrapped.consume_imf_gradient_metrics())
                     generator = getattr(unwrapped, "split_generator", None)
                     if generator is not None:
                         grads = [p.grad.detach().float().square().sum() for p in generator.parameters() if p.grad is not None]

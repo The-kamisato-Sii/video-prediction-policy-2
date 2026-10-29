@@ -1,0 +1,9 @@
+_base_: train_meanflow_diagonal_fix.yaml
+output_dir: runs/libero/imf_auxiliary_fresh
+meanflow:
+  objective: data_improved_meanflow
+  imf:
+    variant: auxiliary
+    auxiliary_depth: 8
+    auxiliary_loss_weight: 1.0
+    initialization: copy_u_tail

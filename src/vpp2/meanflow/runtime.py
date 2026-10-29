@@ -81,7 +81,7 @@ def create_model(benchmark, meanflow, **kwargs):
     cls = MeanFlowVPP2 if benchmark == "robodojo" else MeanFlowLibero
     spec = cfg["student_init"]
     if spec["format"] == "baseline_init":
-        if benchmark != "libero" or cfg["objective"] not in {"data_meanflow", "direct_action"}:
+        if benchmark != "libero" or cfg["objective"] not in {"data_meanflow", "data_improved_meanflow", "direct_action"}:
             raise ValueError("baseline_init is for LIBERO one-step controlled experiments")
         kwargs.update(action_dit_pretrained_path=str(Path(spec["action_checkpoint"]).resolve()),
                       dit_checkpoint_path=str(Path(spec["video_checkpoint"]).resolve()),

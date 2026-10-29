@@ -1,6 +1,7 @@
 """Shared objectives with benchmark-specific condition and gradient boundaries."""
 
 from contextlib import contextmanager, nullcontext
+import os
 
 import torch
 from torch.nn.attention import SDPBackend, sdpa_kernel
@@ -11,6 +12,7 @@ from vpp2.models.wan21_14b.vpp2 import VPP2
 from .objectives import (
     SplitGenerator,
     data_loss,
+    improved_data_loss,
     directional_derivative,
     masked_mse,
     masked_per_sample,
@@ -21,7 +23,7 @@ from .objectives import (
 from .teacher import rollout
 from .loss_config import loss_settings, validate_loss_resume
 from .experiment_config import (interval_settings, validate_interval_objective,
-                                direct_action_settings, validate_experiment_resume)
+                                direct_action_settings, validate_experiment_resume, imf_settings)
 
 
 def prepare_condition(model, inputs, noise_video, *, joint=False):
@@ -115,6 +117,25 @@ class MeanFlowMixin:
             # Do not perturb baseline RNG after constructing the shared parameters.
             with torch.random.fork_rng(devices=[]):
                 self.action_expert.enable_meanflow()
+        if config["objective"] == "data_improved_meanflow":
+            imf = imf_settings(config)
+            self.meanflow_config["imf"] = imf
+            if imf["variant"] == "auxiliary":
+                self.action_expert.enable_aux_v(imf["auxiliary_depth"])
+            self._imf_gradient_squares = {}
+            # Hooks observe local gradients before ZeRO reduction. They never
+            # trigger collectives inside rank-dependent JVP/boundary branches.
+            for name, parameter in self.action_expert.named_parameters():
+                if name.startswith(("aux_v_blocks.", "aux_v_head.")):
+                    group = "v_tail"
+                elif name.startswith("head.") or (name.startswith("blocks.") and int(name.split(".")[1]) >= 32):
+                    group = "u_tail"
+                else:
+                    group = "shared"
+                def record_gradient(grad, group=group):
+                    value = grad.detach().float().square().sum()
+                    self._imf_gradient_squares[group] = self._imf_gradient_squares.get(group, 0) + value
+                parameter.register_hook(record_gradient)
         self.split_generator = None
         if config["objective"] == "kmf" and config.get("split", "midpoint") == "learned":
             self.split_generator = SplitGenerator().to(device=self.device, dtype=torch.float32)
@@ -129,6 +150,15 @@ class MeanFlowMixin:
         return self.predict_action_velocity_with_cache(
             latents_action=z, timestep_action=t * 1000.0, timestep_end=r * 1000.0, **condition
         )
+
+    def consume_imf_gradient_metrics(self):
+        if not hasattr(self, "_imf_gradient_squares"):
+            return {}
+        result = {"imf/local_pre_reduce_grad_norm_" + group:
+                  float(self._imf_gradient_squares[group].sqrt()) if group in self._imf_gradient_squares else 0.0
+                  for group in ("shared", "u_tail", "v_tail")}
+        self._imf_gradient_squares.clear()
+        return result
 
     def training_loss(self, sample, tiled=False, training_stage=None, **kwargs):
         joint = self.meanflow_benchmark == "robodojo"
@@ -232,26 +262,48 @@ class MeanFlowMixin:
                     )
 
             progress = min(1.0, float(self.meanflow_update_step) / max(1, cfg["budget_steps"]))
-            action_loss, metrics = data_loss(
-                predict,
-                derivative,
-                action,
-                noise,
-                r,
-                t,
-                pad,
-                objective=kind,
-                generator=self.split_generator,
-                gamma=-0.5 + progress,
-                alpha=cfg.get("generator_alpha", 0.1),
+            loss_options = dict(
                 baseline_reduction=cfg.get("student_init", {}).get("format") == "baseline_init",
                 loss_weighting=cfg.get("loss_weighting", "uniform"),
                 adaptive_power=cfg.get("adaptive_weighting", {}).get("power", 0.5),
                 adaptive_c=cfg.get("adaptive_weighting", {}).get("c", 0.001),
-                # LIBERO evaluation calls training_loss only on rank zero.
-                # Training collectives must never run in this evaluation path.
                 distributed=self.action_expert.training,
             )
+            if kind == "data_improved_meanflow":
+                auxiliary = cfg["imf"]["variant"] == "auxiliary"
+
+                def predict_v(z, time, rows):
+                    # Auxiliary runs the shared prefix again at (t,t), retaining
+                    # gradients through both the prefix and proprio conditioning.
+                    fixed = condition if auxiliary else slice_condition(condition, rows)
+                    return self.predict_action_velocity_with_cache(
+                        latents_action=z if auxiliary else z[rows],
+                        timestep_action=(time if auxiliary else time[rows]) * 1000.0,
+                        timestep_end=(time if auxiliary else time[rows]) * 1000.0,
+                        action_branch="aux_v" if auxiliary else "u", **fixed,
+                    )
+
+                action_loss, metrics = improved_data_loss(
+                    predict, derivative, predict_v, action, noise, r, t, pad,
+                    auxiliary=auxiliary,
+                    auxiliary_loss_weight=cfg["imf"].get("auxiliary_loss_weight", 1.0),
+                    **loss_options,
+                )
+            else:
+                action_loss, metrics = data_loss(
+                    predict,
+                    derivative,
+                    action,
+                    noise,
+                    r,
+                    t,
+                    pad,
+                    objective=kind,
+                    generator=self.split_generator,
+                    gamma=-0.5 + progress,
+                    alpha=cfg.get("generator_alpha", 0.1),
+                    **loss_options,
+                )
             metrics["teacher_nfe"] = 0
         video_loss = action_loss.new_zeros(())
         if joint:
@@ -286,13 +338,15 @@ class MeanFlowMixin:
 
     def meanflow_metadata(self, step):
         return dict(
-            version=1,
+            version=2 if self.meanflow_config["objective"] == "data_improved_meanflow" else 1,
             objective=self.meanflow_config["objective"],
             action_sampler=self.action_sampler,
             action_nfe=1,
             student_update_step=step,
             provenance=self.meanflow_provenance,
             config=self.meanflow_config,
+            implementation=(dict(name="libero-imf-v1", git_revision=os.environ.get("VPP2_CODE_REVISION"))
+                            if self.meanflow_config["objective"] == "data_improved_meanflow" else None),
         )
 
     def save_checkpoint(self, path, optimizer=None, step=None):
