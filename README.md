@@ -534,7 +534,7 @@ bash scripts/libero/train_imf_boundary.sh
 bash scripts/libero/train_imf_auxiliary.sh
 ```
 
-排队任务会先在所获分布式资源上执行 `scripts/libero_debug/smoke_imf.sh imf_boundary` 或 `imf_auxiliary`：10 个真实更新、单卡 batch=16、30k scheduler，检查分支梯度、compact reload、一次 action forward 推理及 rank-0 evaluator；全部通过才启动对应正式脚本。短跑使用独立 `*-smoke` 目录，不把短跑参数或 optimizer 带入正式实验。真实规模 smoke 未通过时脚本立即失败，不自动降 batch、改精度或改 loss。该 10-step 检查不代表已完成下文建议的 1–2k 收敛诊断，后者须在训练进展后检查。
+排队任务会先在所获分布式资源上执行 `scripts/libero_debug/smoke_imf.sh imf_boundary` 或 `imf_auxiliary`：10 个真实更新、每卡 batch 跟随正式配置且最多为 16（32 卡时为 8）、30k scheduler，检查分支梯度、compact reload、一次 action forward 推理及 rank-0 evaluator；全部通过才启动对应正式脚本。短跑使用独立 `*-smoke` 目录，不把短跑参数或 optimizer 带入正式实验。真实规模 smoke 未通过时脚本立即失败，不自动降 batch、改精度或改 loss。该 10-step 检查不代表已完成下文建议的 1–2k 收敛诊断，后者须在训练进展后检查。
 
 ```bash
 # 不占 GPU 的公式、模型、恢复和两节点启动参数检查

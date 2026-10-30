@@ -7,6 +7,9 @@ method="${1:?imf_boundary or imf_auxiliary}"
 case "$method" in imf_boundary|imf_auxiliary) ;; *) exit 2 ;; esac
 source scripts/libero/activate_env.sh
 source scripts/libero/topology.sh
+# Match production on large allocations; cap small diagnostic allocations at 16.
+smoke_batch="$BATCH_SIZE"
+if (( smoke_batch > 16 )); then smoke_batch=16; fi
 export PYTHONPATH="$repo/checks:$PYTHONPATH"
 export VPP2_TRAIN_MODULE=libero_imf_smoke VPP2_ACCELERATE_CONFIG=configs/libero/accelerate_zero1.yaml
 export VPP2_CODE_REVISION="$(git rev-parse HEAD)"
@@ -17,6 +20,6 @@ name="${RUN_NAME:-libero-${method}-${TRAIN_JOB_ID:-manual}-round${RUNNING_ROUND:
 [[ "$name" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]] || exit 2
 mkdir -p "$repo/runs/libero/${name}_logs"
 bash scripts/train.sh --benchmark libero --config "configs/libero/train_${method}.yaml" --allow-batch-change \
-  "output_dir=$repo/runs/libero/$name" overwrite=false batch_size=16 num_workers=4 log_every=1 \
+  "output_dir=$repo/runs/libero/$name" overwrite=false "batch_size=$smoke_batch" num_workers=4 log_every=1 \
   wandb.enabled=true wandb.mode=offline wandb.project=VPP2-LIBERO-imf-smoke "wandb.name=$name" \
   > >(tee -a "$repo/runs/libero/${name}_logs/node${NODE_RANK}.log") 2>&1
