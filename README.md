@@ -11,6 +11,33 @@ Official implementation of **["Video Prediction Policy 2: Predict Better, Act Be
 
 </div>
 
+## 本分支：LIBERO Flow → Action
+
+本分支在 VPP2 上增加了独立的 flow/action 共享 DiT 实验。原始项目介绍保留在下方。
+**4RC 提取、LZ4 数据读取、MotionVAE 编解码以及训练/推理接入代码都已纳入本仓库**；
+4RC 上游模型源码、模型权重、数据和生成的视频另行准备，不提交到 Git。
+
+- **[4RC → 3D flow → MotionVAE → 共享 DiT 完整指南](docs/libero_pseudo_flow.md)**：
+  安装与权重版本、主视角 flow 定义、归一化、`×10` / `0.18215`、张量形状、
+  单样本可视化、每 suite 两 GPU 生成，以及只切换标签来源的训练命令。
+- [仿真 GT flow 提取与 replay](docs/libero_motion.md)。
+- [共享 flow/action 模型与训练](scripts/libero_flow/README.txt)、
+  [batch 采样规则](scripts/libero_flow/SAMPLING.md)、
+  [一步重建消融](scripts/libero_flow/reconstruction/README.txt)。
+- [Flow/action MeanFlow 实验](scripts/libero_flow_meanflow/README.txt)。
+
+核心入口：`src/vpp2/libero_pseudo_flow/`、`src/vpp2/libero_flow/codec.py`、
+`src/vpp2/libero_flow/model.py`。以下命令均从仓库根目录运行；完整步骤见上述指南。
+
+```bash
+# 当前机器已有环境：仅做 CPU 几何、归一化和 LZ4 读写检查。
+source scripts/libero_pseudo_flow/activate.sh
+"$PYTHON_BIN" scripts/libero_pseudo_flow/check_geometry.py
+
+# 检查 GT-flow 32 tokens / 1/8 action 的启动配置，不启动训练。
+bash scripts/libero_flow/train_32tokens_1of8.sh --dry-run
+```
+
 ## News
 
 - **[2026-10-10]** 🎬 **VPP2 video model weights are now available!** Download the **Stage-1 (49 frames)** and **Stage-2 (17 frames)** checkpoints on [Hugging Face](https://huggingface.co/Haodong082399/VPP2/tree/main/checkpoints_video) and [ModelScope](https://modelscope.cn/models/haodong123/VPP2/files), and get started with our [zero-shot video prediction guide](docs/video_prediction.md).

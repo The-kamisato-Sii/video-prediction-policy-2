@@ -1,5 +1,10 @@
 LIBERO flow/action shared DiT (isolated implementation)
 
+4RC pseudo-flow extraction, pinned dependencies/weights, normalization, MotionVAE
+x10/scaling_factor, tensor shapes and matched-source training commands:
+  docs/libero_pseudo_flow.md
+  (GitHub link: ../../docs/libero_pseudo_flow.md)
+
 Head-only motion supervision is the default from2026-10-25.
   flow.motion_cameras=[image] supervises external/head-camera point maps + flow.
   RGB conditions still include image AND wrist_image. Use
@@ -134,7 +139,8 @@ Checks
   Sampling API: model.sample_task(collated_batch, indicator=0 or1, steps=10).
   The inherited baseline infer_action entry point is deliberately rejected: it
   would use the unused old head. The new training diagnostics use sample_task.
-  A LIBERO environment-rollout wrapper for these new checkpoints is not included.
+  LIBERO rollout deployment is implemented in vpp2.libero_flow.inference/evaluate.
+  It restores the training adapters and configuration; see docs/libero_pseudo_flow.md.
   To measure single-GPU capacity with two real optimizer updates for each
   all-action/all-flow/mixed batch, and stop at the first OOM:
     bash scripts/libero_flow/measure_capacity.sh --tokens 128 --batches 16 32 64 --output runs/libero_flow/capacity_new
