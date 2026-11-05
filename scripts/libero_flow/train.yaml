@@ -1,0 +1,39 @@
+# Merged on top of the unmodified configs/libero/train_action.yaml.
+output_dir: runs/libero_flow/manual
+overwrite: false
+# Per rank. Validated on2 H200; override with num_workers=4/8 on smaller hosts.
+num_workers: 12
+flow:
+  # Every episode contributes flow, independent of the action subset.
+  flow_episode_scope: all
+  # Supervise only external/head camera geometry + flow; RGB conditions stay dual-view.
+  motion_cameras: [image]
+  # Compute mu/S from the selected label views only, over the sampled 8 frames.
+  motion_normalization: selected_views_clip_mean_radius_v1
+  objective: latent_flow_matching
+  reconstruction_loss: l1
+  batch_sampling: homogeneous_interleaved
+  tokens: 32
+  action_denominator: 8
+  dt: 4
+  codec_path: weights/MotionCrafter/geometry_motion_vae
+  codec_frame_batch: 4
+  # Primary objective is FM in the official VAE latent. Decode clean endpoints
+  # into3D; optional decoded clean3D L1 is separately identified, never called3D FM.
+  decoded_3d_weight: 0.0
+  action_only: false
+  # Missing/rejected flow excludes only its flow task record, never its action.
+  missing_motion: skip
+  # Require validated LZ4 sidecars; never silently fall back to slow HDF5.
+  # Missing GT is handled independently by missing_motion above.
+  motion_backend: records
+  motion_open_files: 8
+  # Batches queued per worker; configurable for loader throughput experiments.
+  prefetch_factor: 1
+wandb:
+  enabled: true
+  mode: offline
+  project: VPP2-LIBERO-FLOW
+  name: ${flow.tokens}tokens-action1of${flow.action_denominator}-dt${flow.dt}
+preflight:
+  enabled: false

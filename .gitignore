@@ -24,3 +24,8 @@ configs/libero/local.*
 /results/
 /tests/
 /tools/
+
+# Generated distributed-launch environment may contain credentials.
+/.deepspeed_env
+# Local copy of dataset normalization metadata.
+/dataset_stats.json
