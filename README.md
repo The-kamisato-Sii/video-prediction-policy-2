@@ -25,6 +25,7 @@ Official implementation of **["Video Prediction Policy 2: Predict Better, Act Be
   [batch 采样规则](scripts/libero_flow/SAMPLING.md)、
   [一步重建消融](scripts/libero_flow/reconstruction/README.txt)。
 - [Flow/action MeanFlow 实验](scripts/libero_flow_meanflow/README.txt)。
+- [LIBERO-Pro 实验结果与结论](docs/libero_results.md)（50 个模型的 800 / 2,000 条闭环成功率，以及动作标注比例、4RC、MeanFlow 和 DPT 对照）。
 
 核心入口：`src/vpp2/libero_pseudo_flow/`、`src/vpp2/libero_flow/codec.py`、
 `src/vpp2/libero_flow/model.py`。以下命令均从仓库根目录运行；完整步骤见上述指南。
